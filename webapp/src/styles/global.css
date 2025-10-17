@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&display=swap');
+
+:root {
+  color-scheme: light;
+  font-family: var(--font-display), ui-serif, Georgia, 'Times New Roman', serif;
+
+  --font-display: 'Cinzel', ui-serif;
+
+  --color-background: #f5f1e6;
+  --color-sand: #f2d8b3;
+  --color-olive: #48624c;
+  --color-bark: #6f4f36;
+  --color-accent: #c95d2e;
+  --color-text-primary: #2f2a25;
+  --color-text-muted: rgba(47, 42, 37, 0.7);
+  --color-panel: rgba(255, 255, 255, 0.92);
+
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1.25rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  --elevation-md: 0 24px 48px rgba(41, 29, 12, 0.18);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  background-image: linear-gradient(
+    180deg,
+    rgba(198, 215, 229, 0.25) 0%,
+    rgba(245, 241, 230, 0.85) 65%
+  );
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

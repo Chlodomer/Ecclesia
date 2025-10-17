@@ -1,0 +1,8 @@
+# Node / front-end artifacts
+webapp/node_modules
+webapp/dist
+webapp/coverage
+webapp/.vite
+
+# macOS cruft
+.DS_Store
