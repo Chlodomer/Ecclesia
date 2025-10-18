@@ -45,8 +45,6 @@ export type GameDeck = {
   events: GameEvent[]
 }
 
-const sceneImage = '/assets/scene-overview.png'
-
 export const baseDeck: GameDeck = {
   initialYear: 112,
   events: [
@@ -57,10 +55,10 @@ export const baseDeck: GameDeck = {
       title: 'Who Joins the Table?',
       narrative:
         'Merchants from Massilia offer to host a public agape feast if the community will bless their caravans. Elders worry it blurs the line between sacrament and spectacle.',
-      sceneImage,
-      sceneTitle: 'The Olive Court',
+      sceneImage: '/assets/meal.png',
+      sceneTitle: 'Agape Supper Hall',
       sceneCaption:
-        'Stone walls keep the summer heat at bay while elders debate whether hospitality risks imperial attention.',
+        'Merchants and deacons break bread beneath carved columns as the community weighs how public their fellowship should be.',
       choices: [
         {
           id: 'founding-private',
@@ -145,10 +143,10 @@ export const baseDeck: GameDeck = {
       title: 'The Gnostic Poet',
       narrative:
         'Marcus tours the region with hymns that whisper of a hidden god beyond the creator. Artisans love his poetry; catechists fear doctrinal drift.',
-      sceneImage,
-      sceneTitle: 'Twilight Vigil',
+      sceneImage: '/assets/christians_celebrate_mass.png',
+      sceneTitle: 'Lantern-Lit Nave',
       sceneCaption:
-        'Lanterns throw long shadows across the half-built basilica as debates rise about beauty and truth.',
+        'Lantern light pools around the altar while the faithful listen for guidance on which songs belong in their worship.',
       choices: [
         {
           id: 'gnostic-dismiss',
@@ -233,10 +231,10 @@ export const baseDeck: GameDeck = {
       title: 'The Bacaudae Uprising',
       narrative:
         'Desperate peasants torch aristocratic villas outside Arles. Landowners demand a condemnation; deacons see refugees who need shelter.',
-      sceneImage,
-      sceneTitle: 'Consecration Morning',
+      sceneImage: '/assets/army_visits_town.png',
+      sceneTitle: 'Garrisoned Plaza',
       sceneCaption:
-        'The basilica is nearly complete, yet smoke on the horizon reminds everyone of the fragile peace.',
+        'Imperial cavalry assembles in the plaza as rumors of rebellion sweep through the city streets.',
       choices: [
         {
           id: 'bacaudae-condemn',

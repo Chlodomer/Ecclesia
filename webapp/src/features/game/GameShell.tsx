@@ -34,11 +34,11 @@ export function GameShell() {
 
   const countdownSeconds = Math.ceil(cooldownRemainingMs / 1000)
 
-  const sceneImage = currentEvent?.sceneImage ?? '/assets/scene-overview.png'
-  const sceneTitle = currentEvent?.sceneTitle ?? 'Awaiting the next chapter'
+  const sceneImage = currentEvent?.sceneImage ?? '/assets/church_being_built.png'
+  const sceneTitle = currentEvent?.sceneTitle ?? 'Basilica Under Construction'
   const sceneCaption =
     currentEvent?.sceneCaption ??
-    'Your choices will shape how this community remembers its story. The next scenario arrives shortly.'
+    'Timber scaffolds clutch the nave as masons pause for guidance. Another chapter in the community’s story is on the way.'
 
   const disableChoices = phase !== 'decision' && phase !== 'confirm'
 
