@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import {
   baseDeck,
@@ -210,6 +210,7 @@ const initialState: GameEngineState = {
 
 export function useGameEngine() {
   const [state, dispatch] = useReducer(gameReducer, initialState)
+  const [nowTick, setNowTick] = useState(() => Date.now())
 
   const cooldownTimer = useRef<number | null>(null)
 
@@ -328,7 +329,23 @@ export function useGameEngine() {
     }
   }, [state.phase, state.cooldownEndsAt, advanceAfterCooldown])
 
-  const cooldownRemainingMs = Math.max(0, (state.cooldownEndsAt ?? 0) - Date.now())
+  useEffect(() => {
+    if (state.phase !== 'cooldown' || !state.cooldownEndsAt) {
+      setNowTick(Date.now())
+      return
+    }
+
+    setNowTick(Date.now())
+    const interval = window.setInterval(() => {
+      setNowTick(Date.now())
+    }, 250)
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [state.phase, state.cooldownEndsAt])
+
+  const cooldownRemainingMs = Math.max(0, (state.cooldownEndsAt ?? 0) - nowTick)
 
   const helpers = useMemo(() => {
     const requireReflection = state.pendingChoice?.reflection != null

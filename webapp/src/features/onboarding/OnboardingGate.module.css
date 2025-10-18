@@ -17,14 +17,14 @@
 }
 
 .card {
-  width: min(560px, 100%);
-  background: rgba(255, 255, 255, 0.92);
+  width: min(960px, 100%);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-md);
-  padding: var(--space-2xl);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xl);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: min(48%, 340px) 1fr;
+  min-height: 520px;
 }
 
 .intro {
@@ -33,11 +33,11 @@
   gap: var(--space-sm);
 }
 
-.intro h1 {
+.intro h2 {
   margin: 0;
   font-family: var(--font-display);
   letter-spacing: 0.08em;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   text-transform: uppercase;
   color: var(--color-bark);
 }
@@ -95,15 +95,15 @@
   transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
+.submitButton:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(72, 98, 76, 0.25);
+}
+
 .submitButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   box-shadow: none;
-}
-
-.submitButton:not(:disabled):hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 20px rgba(72, 98, 76, 0.25);
 }
 
 .notice {
@@ -169,12 +169,119 @@
   gap: var(--space-md);
 }
 
-.lockedMessage strong {
+.lockedMessage strong,
+.heroEyebrow {
   color: var(--color-bark);
+}
+
+.lockedMessage p {
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+.secondaryButton {
+  background: transparent;
+  color: var(--color-bark);
+  border: 1px solid rgba(62, 52, 39, 0.35);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s ease-in-out, color 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+
+.secondaryButton:hover {
+  background: rgba(62, 52, 39, 0.08);
+  color: var(--color-bark);
+  transform: translateY(-1px);
+}
+
+.cardContent {
+  padding: var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  background: #fff;
+}
+
+.heroPanel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  color: #fff;
+  overflow: hidden;
+  background: #1e1a16;
+}
+
+.heroArt {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.85);
+  opacity: 0.7;
+}
+
+.heroCopy {
+  position: relative;
+  padding: var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(23, 20, 16, 0.82) 60%, rgba(16, 14, 11, 0.95) 100%);
+}
+
+.heroTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.heroLead {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.6;
+}
+
+.heroEyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-size: 0.7rem;
+}
+
+.heroList {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.heroList li {
+  line-height: 1.4;
 }
 
 @media (max-width: 720px) {
   .card {
+    grid-template-columns: 1fr;
+    min-height: unset;
+  }
+
+  .heroPanel {
+    min-height: 220px;
+  }
+
+  .cardContent {
     padding: var(--space-xl);
+    gap: var(--space-lg);
   }
 }

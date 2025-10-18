@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
+import { useSoundscape } from '@/features/audio/SoundscapeProvider'
 import { useStudentSession } from '@/features/onboarding/OnboardingGate'
 
 import styles from './GameShell.module.css'
@@ -7,6 +8,7 @@ import { useGameEngine } from './state/gameEngine'
 
 export function GameShell() {
   const session = useStudentSession()
+  const { playEffect } = useSoundscape()
   const {
     state,
     selectChoice,
@@ -17,28 +19,64 @@ export function GameShell() {
     cooldownRemainingMs,
   } = useGameEngine()
 
-  const { stats, year, imperialStatus, currentEvent, pendingChoice, resolvedOutcome, log, phase, ending } =
+  const {
+    stats,
+    year,
+    imperialStatus,
+    currentEvent,
+    pendingChoice,
+    resolvedOutcome,
+    log,
+    phase,
+    ending,
+  } =
     state
 
+  useEffect(() => {
+    if (!resolvedOutcome?.soundEffect) return
+    playEffect(resolvedOutcome.soundEffect)
+  }, [resolvedOutcome?.id, resolvedOutcome?.soundEffect, playEffect])
+
   const statEntries = useMemo(
-    () => [
-      { label: 'Members', value: stats.members },
-      { label: 'Cohesion', value: `${stats.cohesion}` },
-      { label: 'Resources', value: `${stats.resources}` },
-      { label: 'Influence', value: `${stats.influence}` },
-    ],
-    [stats],
+    () => {
+      const showDelta =
+        (phase === 'resolving' || phase === 'cooldown') && resolvedOutcome?.effects != null
+      const deltas = showDelta ? resolvedOutcome?.effects ?? {} : {}
+      return [
+        {
+          label: 'Members',
+          value: stats.members,
+          delta: showDelta ? deltas?.members ?? 0 : null,
+        },
+        {
+          label: 'Cohesion',
+          value: stats.cohesion,
+          delta: showDelta ? deltas?.cohesion ?? 0 : null,
+        },
+        {
+          label: 'Resources',
+          value: stats.resources,
+          delta: showDelta ? deltas?.resources ?? 0 : null,
+        },
+        {
+          label: 'Influence',
+          value: stats.influence,
+          delta: showDelta ? deltas?.influence ?? 0 : null,
+        },
+      ]
+    },
+    [stats, phase, resolvedOutcome],
   )
 
   const recentLog = useMemo(() => [...log].reverse().slice(0, 6), [log])
 
-  const countdownSeconds = Math.ceil(cooldownRemainingMs / 1000)
+  const countdownSeconds = Math.max(0, Math.ceil(cooldownRemainingMs / 1000))
 
   const sceneImage = currentEvent?.sceneImage ?? '/assets/church_being_built.png'
   const sceneTitle = currentEvent?.sceneTitle ?? 'Basilica Under Construction'
   const sceneCaption =
     currentEvent?.sceneCaption ??
-    'Timber scaffolds clutch the nave as masons pause for guidance. Another chapter in the community’s story is on the way.'
+    "Timber scaffolds clutch the nave as masons pause for guidance. Another chapter in the community's story is on the way."
 
   const disableChoices = phase !== 'decision' && phase !== 'confirm'
 
@@ -59,7 +97,18 @@ export function GameShell() {
           {statEntries.map((stat) => (
             <div className={styles.statCard} key={stat.label}>
               <span className={styles.statLabel}>{stat.label}</span>
-              <span className={styles.statValue}>{stat.value}</span>
+              <span className={styles.statValue}>
+                {stat.value}
+                {stat.delta != null && stat.delta !== 0 ? (
+                  <span
+                    className={`${styles.statDelta} ${
+                      stat.delta > 0 ? styles.statDeltaPositive : styles.statDeltaNegative
+                    }`}
+                  >
+                    {stat.delta > 0 ? `+${stat.delta}` : stat.delta}
+                  </span>
+                ) : null}
+              </span>
             </div>
           ))}
         </div>

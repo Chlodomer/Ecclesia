@@ -1,3 +1,4 @@
+import { SoundscapeProvider } from '@/features/audio/SoundscapeProvider'
 import { GameShell } from '@/features/game/GameShell'
 import { OnboardingGate } from '@/features/onboarding/OnboardingGate'
 
@@ -8,9 +9,11 @@ import { OnboardingGate } from '@/features/onboarding/OnboardingGate'
 export function App() {
   return (
     <div className="app-root">
-      <OnboardingGate>
-        <GameShell />
-      </OnboardingGate>
+      <SoundscapeProvider>
+        <OnboardingGate>
+          <GameShell />
+        </OnboardingGate>
+      </SoundscapeProvider>
     </div>
   )
 }

@@ -8,6 +8,8 @@ import {
   useState,
 } from 'react'
 
+import { useSoundscape } from '@/features/audio/SoundscapeProvider'
+
 import styles from './OnboardingGate.module.css'
 import {
   type StudentSession,
@@ -133,121 +135,169 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
 
   const session = storedSession
 
+  const { playTheme, stopTheme, prime } = useSoundscape()
+
+  useEffect(() => {
+    if (phase !== 'ready') {
+      playTheme()
+      return () => {
+        stopTheme()
+      }
+    }
+    stopTheme()
+  }, [phase, playTheme, stopTheme])
+
+  const handlePrime = useCallback(() => {
+    prime()
+  }, [prime])
+
   return (
     <StudentSessionContext.Provider value={sessionContextValue}>
       <div className={styles.gateContainer}>
         {children}
         {phase !== 'ready' ? (
-          <div className={styles.overlay} role="dialog" aria-modal="true">
+          <div
+            className={styles.overlay}
+            role="dialog"
+            aria-modal="true"
+            onPointerDownCapture={handlePrime}
+            onKeyDownCapture={handlePrime}
+          >
             <div className={styles.card}>
-              {phase === 'form' ? (
-                <>
-                  <section className={styles.intro}>
-                    <h1>Begin Your Ecclesia Session</h1>
-                    <p>
-                      Welcome. Before guiding the community, log who is taking part. This single
-                      submission records your attempt and prepares the end-of-session report.
-                    </p>
-                  </section>
-                  <form className={styles.form} onSubmit={onSubmit}>
-                    <div className={styles.field}>
-                      <label htmlFor="fullName">Full name</label>
-                      <input
-                        id="fullName"
-                        name="fullName"
-                        type="text"
+              <aside className={styles.heroPanel}>
+                <div
+                  className={styles.heroArt}
+                  role="presentation"
+                  aria-hidden="true"
+                  style={{ backgroundImage: 'url(/assets/procession.png)' }}
+                />
+                <div className={styles.heroCopy}>
+                  <p className={styles.heroEyebrow}>Ecclesia: A Community's Story</p>
+                  <h1 className={styles.heroTitle}>Chronicle the rise of a fragile church.</h1>
+                  <p className={styles.heroLead}>
+                    Record your presence, then guide a late antique community through persecution,
+                    charity, and imperial intrigue. Every decision writes a new chapter.
+                  </p>
+                  <ul className={styles.heroList}>
+                    <li>Log your identity for assessment credit.</li>
+                    <li>Navigate moral dilemmas with uncertain outcomes.</li>
+                    <li>Leave with a reflection report for seminar discussion.</li>
+                  </ul>
+                </div>
+              </aside>
+              <section className={styles.cardContent}>
+                {phase === 'form' ? (
+                  <>
+                    <section className={styles.intro}>
+                      <h2>Begin Your Ecclesia Session</h2>
+                      <p>
+                        Add your details to create a session token on this device. This locks your
+                        attempt so the report maps back to you.
+                      </p>
+                    </section>
+                    <form className={styles.form} onSubmit={onSubmit}>
+                      <div className={styles.field}>
+                        <label htmlFor="fullName">Full name</label>
+                        <input
+                          id="fullName"
+                          name="fullName"
+                          type="text"
                         autoComplete="name"
                         value={fullName}
                         onChange={(event) => setFullName(event.target.value)}
-                        onFocus={resetError}
+                        onFocus={() => {
+                          resetError()
+                          handlePrime()
+                        }}
                         placeholder="e.g., Sophia Laurent"
                         required
                       />
                     </div>
 
-                    <div className={styles.field}>
-                      <label htmlFor="email">Email</label>
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
+                      <div className={styles.field}>
+                        <label htmlFor="email">Email</label>
+                        <input
+                          id="email"
+                          name="email"
+                          type="email"
                         autoComplete="email"
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
-                        onFocus={resetError}
+                        onFocus={() => {
+                          resetError()
+                          handlePrime()
+                        }}
                         placeholder="name@example.edu"
                         required
                       />
                     </div>
 
-                    {error ? <div className={styles.error}>{error}</div> : null}
+                      {error ? <div className={styles.error}>{error}</div> : null}
 
-                    <button
-                      type="submit"
-                      className={styles.submitButton}
-                      disabled={isSubmitting}
-                      data-testid="submit-onboarding"
-                    >
-                      Start my session
-                    </button>
-                  </form>
-                  <p className={styles.notice}>
-                    Once your details are submitted, this browser locks the attempt to the recorded
-                    student. If you need access reset, contact the instructor. Data is stored locally
-                    in <code>{SESSION_STORAGE_KEY}</code>.
-                  </p>
-                </>
-              ) : null}
-
-              {phase === 'resume' && session ? (
-                <div className={styles.resumeCard}>
-                  <section className={styles.intro}>
-                    <h1>Resume Your Session</h1>
-                    <p>
-                      We found an in-progress attempt. Continue where you left off; once you submit
-                      results, this attempt will close.
+                      <button
+                        type="submit"
+                        className={styles.submitButton}
+                        disabled={isSubmitting}
+                        data-testid="submit-onboarding"
+                      >
+                        Enter the chronicle
+                      </button>
+                    </form>
+                    <p className={styles.notice}>
+                      Data persists locally in <code>{SESSION_STORAGE_KEY}</code>. To reset, clear
+                      browser storage or ask your instructor.
                     </p>
-                  </section>
+                  </>
+                ) : null}
 
-                  <ul className={styles.sessionDetails}>
-                    <li>
-                      <strong>Student:</strong> {session.fullName}
-                    </li>
-                    <li>
-                      <strong>Email:</strong> {session.email}
-                    </li>
-                    <li>
-                      <strong>Started:</strong> {formatDate(session.startedAt)}
-                    </li>
-                  </ul>
+                {phase === 'resume' && session ? (
+                  <div className={styles.resumeCard}>
+                    <section className={styles.intro}>
+                      <h2>Resume Your Chronicle</h2>
+                      <p>
+                        We found an active session on this device. Confirm these details to return
+                        to the moment you last guided the community.
+                      </p>
+                    </section>
 
-                  <div className={styles.resumeActions}>
-                    <button type="button" className={styles.resumeButton} onClick={handleResume}>
-                      Resume session
-                    </button>
+                    <ul className={styles.sessionDetails}>
+                      <li>
+                        <strong>Name:</strong> {session.fullName}
+                      </li>
+                      <li>
+                        <strong>Email:</strong> {session.email}
+                      </li>
+                      <li>
+                        <strong>Started:</strong> {formatDate(session.startedAt)}
+                      </li>
+                    </ul>
+
+                    <div className={styles.resumeActions}>
+                      <button type="button" className={styles.resumeButton} onClick={handleResume}>
+                        Rejoin session
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => setStoredSession(null)}
+                      >
+                        Start over
+                      </button>
+                    </div>
                   </div>
+                ) : null}
 
-                  <p className={styles.notice}>
-                    Need an instructor reset? Ask them to clear the stored session for this machine.
-                  </p>
-                </div>
-              ) : null}
-
-              {phase === 'locked' && session ? (
-                <div className={styles.lockedMessage}>
-                  <section className={styles.intro}>
-                    <h1>Session Closed</h1>
+                {phase === 'locked' && session ? (
+                  <div className={styles.lockedMessage}>
+                    <strong>Session Locked</strong>
                     <p>
                       This browser already submitted a completed Ecclesia session for{' '}
-                      <strong>{session.fullName}</strong>.
+                      <strong>{session.fullName}</strong>. Request a reset from your instructor if
+                      you need another attempt.
                     </p>
-                  </section>
-                  <p className={styles.notice}>
-                    To request another attempt, contact your instructor. Clearing browser storage
-                    without approval may violate class policy.
-                  </p>
-                </div>
-              ) : null}
+                  </div>
+                ) : null}
+              </section>
             </div>
           </div>
         ) : null}
