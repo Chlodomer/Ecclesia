@@ -135,7 +135,7 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
 
   const session = storedSession
 
-  const { playTheme, stopTheme, prime } = useSoundscape()
+  const { playTheme, stopTheme, prime, themeEnabled } = useSoundscape()
 
   useEffect(() => {
     if (phase !== 'ready') {
@@ -149,7 +149,10 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
 
   const handlePrime = useCallback(() => {
     prime()
-  }, [prime])
+    if (themeEnabled) {
+      playTheme()
+    }
+  }, [prime, playTheme, themeEnabled])
 
   return (
     <StudentSessionContext.Provider value={sessionContextValue}>

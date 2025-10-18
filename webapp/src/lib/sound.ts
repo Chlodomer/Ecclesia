@@ -6,6 +6,7 @@ export type SoundCue =
   | 'sermon'
   | 'discussion'
   | 'violence'
+  | 'ui'
 
 export const SOUND_CUES: SoundCue[] = [
   'chant',
@@ -15,4 +16,5 @@ export const SOUND_CUES: SoundCue[] = [
   'sermon',
   'discussion',
   'violence',
+  'ui',
 ]
