@@ -1,0 +1,161 @@
+ECCLESIA - AUDIO RESOURCES CREDITS
+===================================
+
+All sound effects in this project are from free, royalty-free sources.
+Downloaded: October 18, 2025
+
+---
+
+CHANT FOLDER
+============
+
+1. church_bells_medieval.mp3 (900KB)
+   Source: Orange Free Sounds
+   Original: Church Bells Ringing (Medieval bells recorded in 11th century monastery)
+   URL: https://orangefreesounds.com/church-bells/
+   License: Free for commercial use
+
+2. church_bell_single.mp3 (178KB)
+   Source: Orange Free Sounds
+   Original: Church Bell Single Hit
+   URL: https://orangefreesounds.com/church-bell/
+   License: Free for commercial use
+
+3. church_bell_ringing.mp3 (326KB)
+   Source: Orange Free Sounds
+   Original: Church Bell Ringing Sound Effect (8 strikes)
+   URL: https://orangefreesounds.com/church-bell-ringing-sound-effect/
+   License: Free for commercial use
+
+4. gregorian_chant_01.mp3 (143KB)
+   Source: Internet Archive
+   Original: Introitus Ad te Domine levavi from Gregorian Chant Mass
+   URL: https://archive.org/details/GregorianChantMass
+   License: Public Domain
+
+5. gregorian_chant_03.mp3 (142KB)
+   Source: Internet Archive
+   Original: Gregorian Chants & Meditation Music Track 01
+   URL: https://archive.org/details/GregorianChantsMeditationMusic
+   License: Public Domain
+
+---
+
+CROWD FOLDER
+============
+
+1. crowd_talking.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Crowd Talking Sound Effect (murmur of people in great hall)
+   URL: https://orangefreesounds.com/crowd-talking-sound-effect/
+   License: Free for commercial use
+
+2. people_talking.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: People Talking (lots of people in hall)
+   URL: https://orangefreesounds.com/people-talking/
+   License: Free for commercial use
+
+3. street_crowd.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Street Crowd Ambience
+   URL: https://orangefreesounds.com/street-crowd-ambience/
+   License: Free for commercial use
+
+---
+
+CONSTRUCTION FOLDER
+===================
+
+1. hammer_wood.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Hammering Nail Into Wood
+   URL: https://orangefreesounds.com/hammer-sound/
+   License: Free for commercial use
+
+2. construction_site.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Construction Site Noise Hammering And Drilling
+   URL: https://orangefreesounds.com/construction-site-noise-hammering-and-drilling/
+   License: Free for commercial use
+
+---
+
+DISCUSSION FOLDER
+=================
+
+1. crowd_noise.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Crowd Noise (people talking in large crowd)
+   URL: https://orangefreesounds.com/crowd-noise/
+   License: Free for commercial use
+
+2. people_murmur.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Talking People
+   URL: https://orangefreesounds.com/talking-people/
+   License: Free for commercial use
+
+---
+
+SERMON FOLDER
+=============
+
+1. announcement_tone.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Announcement Sound Effect (four tone rising sound)
+   URL: https://orangefreesounds.com/announcement-sound-effect/
+   License: Free for commercial use
+
+---
+
+VIOLENCE FOLDER
+===============
+
+1. sword_fight.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Sword Fight Sound Effect (two swords clashing)
+   URL: https://orangefreesounds.com/sword-fight-sound-effect/
+   License: Free for commercial use
+
+---
+
+QUIET FOLDER
+============
+
+1. nature_peaceful.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Relaxing Nature Sounds
+   URL: https://orangefreesounds.com/relaxing-nature-sounds/
+   License: Free for commercial use
+
+2. forest_ambient.mp3 (180KB)
+   Source: Orange Free Sounds
+   Original: Relaxing Forest Sounds (birds chirping, water flowing)
+   URL: https://orangefreesounds.com/relaxing-forest-sounds/
+   License: Free for commercial use
+
+---
+
+SUMMARY
+=======
+
+Total Files: 16 sound files
+Total Size: ~3.2 MB
+
+Sources:
+- Orange Free Sounds (orangefreesounds.com): 14 files
+- Internet Archive (archive.org): 2 files
+
+All files are licensed for free commercial use or are in the public domain.
+
+For Orange Free Sounds: "Free for commercial use" means you can use these sounds
+in commercial projects without attribution, though attribution is appreciated.
+
+For Internet Archive public domain files: These files are in the public domain
+and can be used freely for any purpose.
+
+---
+
+Last Updated: October 18, 2025
+Project: Ecclesia - A Community's Story
