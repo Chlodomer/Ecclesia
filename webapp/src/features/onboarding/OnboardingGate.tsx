@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 
@@ -108,6 +109,7 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
       return
     }
 
+    playEffect('ui')
     setIsSubmitting(true)
 
     try {
@@ -130,29 +132,47 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
 
   const handleResume = () => {
     if (!storedSession) return
+    playEffect('ui')
     setHasUnlocked(true)
   }
 
   const session = storedSession
 
-  const { playTheme, stopTheme, prime, themeEnabled } = useSoundscape()
+  const { playTheme, stopTheme, prime, themeEnabled, isUnlocked, playEffect } = useSoundscape()
+  const lastPhaseRef = useRef<Phase | null>(null)
 
   useEffect(() => {
-    if (phase !== 'ready') {
-      playTheme()
-      return () => {
-        stopTheme()
-      }
+    console.log('[OnboardingGate] Audio effect triggered', { phase, lastPhase: lastPhaseRef.current, themeEnabled, isUnlocked })
+
+    // Only manage audio if conditions are met
+    if (!themeEnabled || !isUnlocked) {
+      console.log('[OnboardingGate] Skipping audio - themeEnabled:', themeEnabled, 'isUnlocked:', isUnlocked)
+      return
     }
-    stopTheme()
-  }, [phase, playTheme, stopTheme])
+
+    // Only take action if phase actually changed
+    if (lastPhaseRef.current === phase) {
+      console.log('[OnboardingGate] Phase unchanged, skipping')
+      return
+    }
+
+    // Track the phase change
+    lastPhaseRef.current = phase
+
+    // Play theme during onboarding (phase !== 'ready')
+    // Stop theme when game starts (phase === 'ready')
+    if (phase !== 'ready') {
+      console.log('[OnboardingGate] Phase is onboarding, calling playTheme()')
+      playTheme()
+    } else {
+      console.log('[OnboardingGate] Phase is ready, stopping theme')
+      stopTheme()
+    }
+  }, [phase, themeEnabled, isUnlocked, playTheme, stopTheme])
 
   const handlePrime = useCallback(() => {
     prime()
-    if (themeEnabled) {
-      playTheme()
-    }
-  }, [prime, playTheme, themeEnabled])
+  }, [prime])
 
   return (
     <StudentSessionContext.Provider value={sessionContextValue}>
