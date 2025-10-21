@@ -47,6 +47,58 @@ export type GameDeck = {
   events: GameEvent[]
 }
 
+// Micro-events: short flavor beats shown during cooldown with small effects
+export type MicroEvent = {
+  id: string
+  description: string
+  effects: StatDelta
+  soundEffect?: SoundCue
+}
+
+const microEvents: WeightedOption<MicroEvent>[] = [
+  {
+    value: {
+      id: 'micro-alms-widow',
+      description: 'A widow shares her last loaf; the almonry stirs to action.',
+      effects: { cohesion: 2, influence: 1 },
+      soundEffect: 'discussion',
+    },
+    weight: 5,
+  },
+  {
+    value: {
+      id: 'micro-sick-healed',
+      description: 'A fever breaks after prayer; neighbors whisper cautiously of mercy.',
+      effects: { members: 2, influence: 1 },
+      soundEffect: 'quiet',
+    },
+    weight: 4,
+  },
+  {
+    value: {
+      id: 'micro-guild-grumble',
+      description: 'Guild leaders grumble about lost sales after vespers.',
+      effects: { influence: -1 },
+      soundEffect: 'crowd',
+    },
+    weight: 3,
+  },
+  {
+    value: {
+      id: 'micro-psalm-vigil',
+      description: 'A quiet psalm rises from the courtyard; hearts steady.',
+      effects: { cohesion: 2 },
+      soundEffect: 'chant',
+    },
+    weight: 5,
+  },
+]
+
+export function drawMicroEvent(seed: number = Date.now()): MicroEvent {
+  const rng = createSeededRng(seed)
+  return pickWeightedOption(microEvents, rng)
+}
+
 export const baseDeck: GameDeck = {
   initialYear: 112,
   events: [
@@ -92,6 +144,534 @@ export const baseDeck: GameDeck = {
       ],
     },
     {
+      id: 'confessors-return',
+      era: 'crisis',
+      yearHint: 262,
+      title: 'Confessors Return',
+      narrative:
+        'After a season of persecution, several who lapsed under pressure seek to return. Elders disagree on penance before communion.',
+      sceneImage: '/assets/christians_celebrate_mass.png',
+      sceneTitle: 'Nave After the Storm',
+      sceneCaption:
+        'Candles flicker over worn faces as confessors and the lapsed stand side by side awaiting guidance.',
+      choices: [
+        {
+          id: 'confessors-strict',
+          label: 'Require a long penance before restoration.',
+          reflection: {
+            prompt: 'Why might stricter penance help the church?',
+            options: [
+              'It rebuilds trust and teaches endurance.',
+              'Imperial law demands penance first.',
+              'It increases alms from the lapsed.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'confessors-strict-a',
+                description:
+                  'Some wait patiently and deepen their faith. Others depart in shame, but discipline steadies the flock.',
+                effects: { cohesion: 8, members: -6 },
+                yearAdvance: 3,
+                soundEffect: 'chant',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'confessors-strict-b',
+                description:
+                  'A faction accuses you of hardness. Small house meetings form around a lenient presbyter.',
+                effects: { cohesion: -8, influence: -3 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'confessors-pastoral',
+          label: 'Restore quickly with public repentance and mentorship.',
+          reflection: {
+            prompt: 'What risk accompanies a swift restoration?',
+            options: [
+              'Cohesion may suffer if wounds feel minimized.',
+              'Imperial spies may infiltrate again.',
+              'Restored believers forget the creed.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'confessors-pastoral-a',
+                description:
+                  'Tears and embraces mark the liturgy. Mentors step up, and some who had drifted return.',
+                effects: { cohesion: 4, members: 6 },
+                yearAdvance: 2,
+                soundEffect: 'crowd',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'confessors-pastoral-b',
+                description:
+                  'Long-suffering confessors feel overlooked. Old scars reopen in whispered complaints.',
+                effects: { cohesion: -6 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'basilica-patronage',
+      era: 'imperial',
+      yearHint: 332,
+      title: 'Basilica Patronage Dispute',
+      narrative:
+        'Local nobles fund the basilica but demand plaques naming their houses beneath the apse mosaic. Deacons warn it will divide the poor.',
+      sceneImage: '/assets/church_being_built.png',
+      sceneTitle: 'Apse Under Scaffolds',
+      sceneCaption:
+        'Mosaic tiles glint above the nave while patrons haggle with deacons over whose names will endure.',
+      choices: [
+        {
+          id: 'patronage-accept',
+          label: 'Accept plaques in gratitude and dedicate them at consecration.',
+          reflection: {
+            prompt: 'What is the danger of public donor plaques?',
+            options: [
+              'Honor can tether worship to status.',
+              'Imperial law requires anonymity.',
+              'Plaques reduce acoustics in the apse.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'patronage-accept-a',
+                description:
+                  'Donors swell attendance at consecration. Some poor families feel unseen but funds flow steadily.',
+                effects: { members: 10, cohesion: -4, influence: 4 },
+                yearAdvance: 3,
+                soundEffect: 'construction',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'patronage-accept-b',
+                description:
+                  'A quarrel over placement erupts between houses. Work halts for weeks while tempers cool.',
+                effects: { cohesion: -8, resources: -6 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'patronage-anonymous',
+          label: 'Anonymize gifts; inscribe only scriptural verses.',
+          reflection: {
+            prompt: 'Why might anonymity strengthen witness?',
+            options: [
+              'It centers gratitude on God rather than status.',
+              'Imperial auditors prefer anonymous ledgers.',
+              'It prevents dust from collecting on plaques.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'patronage-anonymous-a',
+                description:
+                  'Some nobles bristle, but many admire the stance. A widow’s mite inspires fresh generosity.',
+                effects: { cohesion: 8, members: 6 },
+                yearAdvance: 2,
+                soundEffect: 'chant',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'patronage-anonymous-b',
+                description:
+                  'Two patrons withdraw support, shrinking the project and delaying completion.',
+                effects: { resources: -10, influence: -4 },
+                yearAdvance: 2,
+                soundEffect: 'construction',
+              },
+              weight: 4,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'guild-sabbath-conflict',
+      era: 'imperial',
+      yearHint: 355,
+      title: 'Guild Sabbath Conflict',
+      narrative:
+        'Bakers complain Sunday rest ruins their margins; they ask you to sign exemptions for pre-dawn work before liturgy.',
+      sceneImage: '/assets/meal.png',
+      sceneTitle: 'Ovens Before Dawn',
+      sceneCaption:
+        'Flour dust hangs in lamplight as guild heads wait to hear whether labor will yield to worship or bend to custom.',
+      choices: [
+        {
+          id: 'guild-letters',
+          label: 'Write letters allowing early bakers to work with limits.',
+          reflection: {
+            prompt: 'What unintended message could exemptions send?',
+            options: [
+              'That economic pressure outranks common worship.',
+              'That bread is unclean if baked on Sunday.',
+              'That only bakers deserve rest.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'guild-letters-a',
+                description:
+                  'Bread remains affordable and families are grateful. Some deacons worry devotion will drift.',
+                effects: { members: 8, cohesion: -4 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'guild-letters-b',
+                description:
+                  'Other guilds demand similar exceptions. The rhythm of the Lord’s Day blurs for many.',
+                effects: { cohesion: -8, influence: -2 },
+                yearAdvance: 1,
+                soundEffect: 'crowd',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'guild-rest',
+          label: 'Hold a firm line: rest and worship together.',
+          reflection: {
+            prompt: 'Why insist on common rest?',
+            options: [
+              'Shared time forms a people, not just beliefs.',
+              'Imperial taxes fall on closed shops.',
+              'It improves the smell of loaves.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'guild-rest-a',
+                description:
+                  'Some bakers lament lost sales; others testify to renewed joy. A few patrons bring bread after vespers.',
+                effects: { cohesion: 8, members: -4 },
+                yearAdvance: 2,
+                soundEffect: 'chant',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'guild-rest-b',
+                description:
+                  'Prices spike in poorer quarters. Grumbling spreads in the market stalls against “church rules.”',
+                effects: { influence: -6, members: -6 },
+                yearAdvance: 1,
+                soundEffect: 'crowd',
+              },
+              weight: 4,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'settlement-oath',
+      era: 'imperial',
+      yearHint: 418,
+      title: 'Settlement Oath at the Forum',
+      narrative:
+        'A Visigothic comes orders citizens to swear an oath for protection. Elders debate what fidelity the church can promise.',
+      sceneImage: '/assets/army_visits_town.png',
+      sceneTitle: 'Standards at the Gate',
+      sceneCaption:
+        'Soldiers watch the basilica doors as citizens whisper about the oath’s terms and the safety it might buy.',
+      choices: [
+        {
+          id: 'oath-swear',
+          label: 'Swear a limited civic oath; clarify loyalty is not worship.',
+          reflection: {
+            prompt: 'What danger lurks in civic oaths?',
+            options: [
+              'Vows can blur lines between God and ruler.',
+              'Oaths always raise taxes by decree.',
+              'They force all soldiers to convert.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'oath-swear-a',
+                description:
+                  'Your careful language averts charges of disloyalty. Some zealots leave, but the city breathes easier.',
+                effects: { influence: 6, cohesion: -4 },
+                yearAdvance: 3,
+                soundEffect: 'discussion',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'oath-swear-b',
+                description:
+                  'A faction insists the oath is idolatry. Street arguments flare and a deacon is struck.',
+                effects: { cohesion: -8, members: -4 },
+                yearAdvance: 2,
+                soundEffect: 'violence',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'oath-mediation',
+          label: 'Petition commanders to accept a pledge of peace instead of an oath.',
+          reflection: {
+            prompt: 'Why seek a pledge over an oath?',
+            options: [
+              'It lowers risk of religious compromise.',
+              'It guarantees tax relief.',
+              'It forces Goths to attend liturgy.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'oath-mediation-a',
+                description:
+                  'Commanders accept a pledge for now. Merchants reopen stalls and watch your counsel closely.',
+                effects: { influence: 8, members: 4 },
+                yearAdvance: 2,
+                soundEffect: 'crowd',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'oath-mediation-b',
+                description:
+                  'Talks stall and tempers rise. A levy is imposed on the church storehouse.',
+                effects: { resources: -8, cohesion: -4 },
+                yearAdvance: 1,
+                soundEffect: 'violence',
+              },
+              weight: 4,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'famine-rations',
+      era: 'imperial',
+      yearHint: 421,
+      title: 'Famine Relief Rations',
+      narrative:
+        'Failed harvests thin grain stores. The deacons propose rationing models that will decide who eats first.',
+      sceneImage: '/assets/clergy_distributing_alms.png',
+      sceneTitle: 'Almonry at Dusk',
+      sceneCaption:
+        'Hands reach for ladles under the basilica portico as you weigh justice, witness, and survival.',
+      choices: [
+        {
+          id: 'rations-needs',
+          label: 'Distribute by need: widows, orphans, and the sick first.',
+          reflection: {
+            prompt: 'What cost comes with needs-based rations?',
+            options: [
+              'Some families will quietly go hungry.',
+              'Imperial law forbids such distributions.',
+              'Merchants cannot trade on fast days.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'rations-needs-a',
+                description:
+                  'The weakest survive and your reputation for mercy grows. Whispered resentment simmers among the overlooked.',
+                effects: { members: 8, cohesion: -4, influence: 4 },
+                yearAdvance: 2,
+                soundEffect: 'crowd',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'rations-needs-b',
+                description:
+                  'Fraud accusations spark investigations that drain time and trust.',
+                effects: { cohesion: -8, influence: -4 },
+                yearAdvance: 1,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'rations-households',
+          label: 'Equal portions per household regardless of status.',
+          reflection: {
+            prompt: 'Why can equal shares still feel unfair?',
+            options: [
+              'Needs vary; equality can hide injustice.',
+              'Roman law requires unequal shares.',
+              'Equal portions spoil faster.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'rations-households-a',
+                description:
+                  'Distribution is orderly and tempers cool, though the weakest still strain to make ends meet.',
+                effects: { cohesion: 6, influence: 2 },
+                yearAdvance: 1,
+                soundEffect: 'quiet',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'rations-households-b',
+                description:
+                  'Large households exploit the rule; deacons scramble to plug gaps.',
+                effects: { cohesion: -6, resources: -6 },
+                yearAdvance: 1,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'relic-translation',
+      era: 'imperial',
+      yearHint: 429,
+      title: 'Relic Translation and Pilgrims',
+      narrative:
+        'A bishop offers relics of a local martyr. Moving them to the basilica could draw pilgrims and controversy.',
+      sceneImage: '/assets/procession.png',
+      sceneTitle: 'Procession with Reliquary',
+      sceneCaption:
+        'Lanterns sway around a gilded box as the faithful debate spectacle versus devotion.',
+      choices: [
+        {
+          id: 'relic-procession',
+          label: 'Hold a grand procession through the city.',
+          reflection: {
+            prompt: 'What risk comes with spectacle?',
+            options: [
+              'Public display can cheapen holy things.',
+              'Processions always trigger taxation.',
+              'Reliquaries are illegal outside Rome.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'relic-procession-a',
+                description:
+                  'Crowds flood the nave and traders set up stalls. Some elders warn against mixing profit with prayer.',
+                effects: { members: 12, cohesion: -6, influence: 6 },
+                yearAdvance: 2,
+                soundEffect: 'crowd',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'relic-procession-b',
+                description:
+                  'A jostle topples a torch; the reliquary is unharmed but critics call the display irreverent.',
+                effects: { cohesion: -8, influence: -4 },
+                yearAdvance: 1,
+                soundEffect: 'violence',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'relic-quiet',
+          label: 'Translate the relics at night with fasting and prayer.',
+          reflection: {
+            prompt: 'Why might restraint deepen formation?',
+            options: [
+              'Hiddenness can purify motives and focus.',
+              'Imperial law forbids night processions.',
+              'Relics require sunlight to be valid.',
+            ],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'relic-quiet-a',
+                description:
+                  'Pilgrims come more slowly, yet catechesis strengthens and prayer spreads beyond the city.',
+                effects: { cohesion: 8, members: 4 },
+                yearAdvance: 2,
+                soundEffect: 'chant',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'relic-quiet-b',
+                description:
+                  'Merchants grumble at lost opportunity; a patron threatens to reduce alms.',
+                effects: { resources: -6, influence: -4 },
+                yearAdvance: 1,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+      ],
+    },
+    {
       id: 'founding-agape',
       era: 'founding',
       yearHint: 116,
@@ -123,7 +703,7 @@ export const baseDeck: GameDeck = {
                   'The gathering deepens trust. A few curious onlookers drift away, but the flock feels anchored.',
                 effects: { cohesion: 8, members: -3 },
                 yearAdvance: 2,
-                soundEffect: 'chant',
+                soundEffect: 'crowd',
               },
               weight: 7,
             },
@@ -211,7 +791,7 @@ export const baseDeck: GameDeck = {
                   'The hymn arrests neighbors in doorways. Some join the march, others report the spectacle to the watch.',
                 effects: { members: 6, influence: 5, cohesion: -4 },
                 yearAdvance: 2,
-                soundEffect: 'chant',
+                soundEffect: 'crowd',
               },
               weight: 6,
             },
@@ -1167,7 +1747,12 @@ export function drawEvent(
   }
 
   const rng = createSeededRng(seed)
-  const era = eraForYear(clock.currentYear)
+  const yearEra = eraForYear(clock.currentYear)
+  // Progression guard: after 4 events, advance to crisis; after 8, advance to imperial
+  const count = clock.eventsResolved.size
+  const progressionEra: GameEvent['era'] = count < 4 ? 'founding' : count < 8 ? 'crisis' : 'imperial'
+  const era =
+    eraOrder.indexOf(progressionEra) > eraOrder.indexOf(yearEra) ? progressionEra : yearEra
 
   const unused = deck.events.filter(
     (event) => event.era === era && !clock.eventsResolved.has(event.id),

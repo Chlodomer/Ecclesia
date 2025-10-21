@@ -1,18 +1,28 @@
 import type { SoundCue } from './sound'
 
+// Feature flag: enable parked bell assets without touching code
+// Set VITE_ENABLE_BELLS=true in your environment to re-introduce bell sounds.
+export const BELLS_ENABLED: boolean =
+  typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_ENABLE_BELLS === 'true'
+
+const CHANT_BASE = [
+  '/sounds/chant/gregorian_chant_01.mp3',
+  '/sounds/chant/gregorian_chant_03.mp3',
+]
+const CHANT_BELLS = [
+  '/sounds/chant/church_bell_ringing.mp3',
+  '/sounds/chant/church_bell_single.mp3',
+  '/sounds/chant/church_bells_medieval.mp3',
+]
+const SERMON_BASE = ['/sounds/sermon/announcement_tone.mp3']
+const SERMON_BELLS = [
+  '/sounds/chant/church_bell_single.mp3',
+  '/sounds/chant/church_bell_ringing.mp3',
+]
+
 export const SOUND_MANIFEST: Record<SoundCue, string[]> = {
-  chant: [
-    '/sounds/chant/church_bell_ringing.mp3',
-    '/sounds/chant/church_bell_single.mp3',
-    '/sounds/chant/church_bells_medieval.mp3',
-    '/sounds/chant/gregorian_chant_01.mp3',
-    '/sounds/chant/gregorian_chant_03.mp3',
-  ],
-  sermon: [
-    '/sounds/sermon/announcement_tone.mp3',
-    '/sounds/chant/church_bell_single.mp3',
-    '/sounds/chant/church_bell_ringing.mp3',
-  ],
+  chant: BELLS_ENABLED ? [...CHANT_BASE, ...CHANT_BELLS] : CHANT_BASE,
+  sermon: BELLS_ENABLED ? [...SERMON_BASE, ...SERMON_BELLS] : SERMON_BASE,
   crowd: [
     '/sounds/crowd/crowd_talking.mp3',
     '/sounds/crowd/crowd_talking_soundjay.mp3',

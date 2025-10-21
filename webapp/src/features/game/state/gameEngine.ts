@@ -3,10 +3,12 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import {
   baseDeck,
   drawEvent,
+  drawMicroEvent,
   getImperialStatus,
   type EventChoice,
   type EventOutcome,
   type GameEvent,
+  type MicroEvent,
   type ReflectionPrompt,
   type StatDelta,
 } from '@/content/eventDeck'
@@ -49,6 +51,9 @@ type GameEngineState = {
   pendingReflectionAnswer: number | null
   resolvedOutcome: EventOutcome | null
   cooldownEndsAt: number | null
+  microEventPending: MicroEvent | null
+  microEventRevealAt: number | null
+  microEventRevealed: boolean
   log: GameLogEntry[]
   eventsResolved: Set<string>
   ending: GameEnding | null
@@ -67,6 +72,8 @@ type GameEngineAction =
       type: 'advanceToEvent'
       payload: { event: GameEvent | null; year: number; imperialStatus: string }
     }
+  | { type: 'scheduleMicroEvent'; payload: { micro: MicroEvent; revealAt: number } }
+  | { type: 'revealMicroEvent' }
   | { type: 'markComplete'; payload: { ending: GameEnding } }
 
 const INITIAL_STATS: GameStats = {
@@ -87,6 +94,13 @@ function applyStatDelta(stats: GameStats, delta: StatDelta): GameStats {
     resources: Math.max(0, Math.min(100, stats.resources + (delta.resources ?? 0))),
     influence: Math.max(0, Math.min(100, stats.influence + (delta.influence ?? 0))),
   }
+}
+
+function getMembersGrowthFactor(year: number): number {
+  if (year < 160) return 1.0
+  if (year < 313) return 1.25
+  if (year < 380) return 1.5
+  return 1.8
 }
 
 function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngineState {
@@ -164,6 +178,7 @@ function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngi
         ...state,
         phase: 'cooldown',
         cooldownEndsAt: action.payload.endsAt,
+        microEventRevealed: false,
       }
     }
 
@@ -174,7 +189,29 @@ function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngi
         currentEvent: action.payload.event,
         cooldownEndsAt: null,
         resolvedOutcome: null,
+        microEventPending: null,
+        microEventRevealAt: null,
+        microEventRevealed: false,
         imperialStatus: action.payload.imperialStatus,
+      }
+    }
+
+    case 'scheduleMicroEvent': {
+      return {
+        ...state,
+        microEventPending: action.payload.micro,
+        microEventRevealAt: action.payload.revealAt,
+        microEventRevealed: false,
+      }
+    }
+
+    case 'revealMicroEvent': {
+      if (!state.microEventPending) return state
+      const nextStats = applyStatDelta(state.stats, state.microEventPending.effects)
+      return {
+        ...state,
+        stats: nextStats,
+        microEventRevealed: true,
       }
     }
 
@@ -203,6 +240,9 @@ const initialState: GameEngineState = {
   pendingReflectionAnswer: null,
   resolvedOutcome: null,
   cooldownEndsAt: null,
+  microEventPending: null,
+  microEventRevealAt: null,
+  microEventRevealed: false,
   log: [],
   eventsResolved: new Set(),
   ending: null,
@@ -259,7 +299,13 @@ export function useGameEngine() {
     if (!current || !choice) return
 
     const outcome = pickWeightedOption(choice.outcomes, Math.random)
-    const updatedStats = applyStatDelta(state.stats, outcome.effects)
+    // Scale members growth by era so reaching 500 is achievable within a session
+    const factor = getMembersGrowthFactor(state.year)
+    const scaled: StatDelta = {
+      ...outcome.effects,
+      members: Math.round((outcome.effects.members ?? 0) * factor),
+    }
+    const updatedStats = applyStatDelta(state.stats, scaled)
     const nextImperial = getImperialStatus(state.year + outcome.yearAdvance)
 
     dispatch({
@@ -278,6 +324,11 @@ export function useGameEngine() {
 
     const endsAt = Date.now() + COOLDOWN_MS
     dispatch({ type: 'enterCooldown', payload: { endsAt } })
+
+    // Schedule a micro-event to reveal midway through cooldown
+    const micro = drawMicroEvent(Date.now())
+    const revealAt = Date.now() + Math.max(1200, Math.floor(COOLDOWN_MS * 0.5))
+    dispatch({ type: 'scheduleMicroEvent', payload: { micro, revealAt } })
   }, [state.currentEvent, state.pendingChoice, state.stats, state.year, checkForEnding])
 
   const advanceAfterCooldown = useCallback(() => {
@@ -344,6 +395,38 @@ export function useGameEngine() {
       window.clearInterval(interval)
     }
   }, [state.phase, state.cooldownEndsAt])
+
+  // Schedule a one-shot timer to reveal the micro-event at the planned time
+  useEffect(() => {
+    if (
+      state.phase !== 'cooldown' ||
+      !state.microEventPending ||
+      !state.microEventRevealAt ||
+      state.microEventRevealed
+    ) {
+      return
+    }
+    const delay = Math.max(0, state.microEventRevealAt - Date.now())
+    const id = window.setTimeout(() => {
+      dispatch({ type: 'revealMicroEvent' })
+    }, delay)
+    return () => {
+      window.clearTimeout(id)
+    }
+  }, [state.phase, state.microEventPending, state.microEventRevealAt, state.microEventRevealed])
+
+  // Reveal micro-event once reveal time passes
+  useEffect(() => {
+    if (
+      state.phase === 'cooldown' &&
+      state.microEventPending &&
+      state.microEventRevealAt &&
+      !state.microEventRevealed &&
+      Date.now() >= state.microEventRevealAt
+    ) {
+      dispatch({ type: 'revealMicroEvent' })
+    }
+  }, [state.phase, state.microEventPending, state.microEventRevealAt, state.microEventRevealed])
 
   const cooldownRemainingMs = Math.max(0, (state.cooldownEndsAt ?? 0) - nowTick)
 

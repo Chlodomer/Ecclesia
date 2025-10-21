@@ -109,7 +109,7 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
       return
     }
 
-    playEffect('ui')
+    // UI sounds frozen; keep silent here
     setIsSubmitting(true)
 
     try {
@@ -132,43 +132,19 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
 
   const handleResume = () => {
     if (!storedSession) return
-    playEffect('ui')
+    // UI sounds frozen; keep silent here
     setHasUnlocked(true)
   }
 
   const session = storedSession
 
-  const { playTheme, stopTheme, prime, themeEnabled, isUnlocked, playEffect } = useSoundscape()
+  const { prime, playEffect } = useSoundscape()
   const lastPhaseRef = useRef<Phase | null>(null)
 
   useEffect(() => {
-    console.log('[OnboardingGate] Audio effect triggered', { phase, lastPhase: lastPhaseRef.current, themeEnabled, isUnlocked })
-
-    // Only manage audio if conditions are met
-    if (!themeEnabled || !isUnlocked) {
-      console.log('[OnboardingGate] Skipping audio - themeEnabled:', themeEnabled, 'isUnlocked:', isUnlocked)
-      return
-    }
-
-    // Only take action if phase actually changed
-    if (lastPhaseRef.current === phase) {
-      console.log('[OnboardingGate] Phase unchanged, skipping')
-      return
-    }
-
-    // Track the phase change
+    // Theme music disabled globally; no onboarding music behavior
     lastPhaseRef.current = phase
-
-    // Play theme during onboarding (phase !== 'ready')
-    // Stop theme when game starts (phase === 'ready')
-    if (phase !== 'ready') {
-      console.log('[OnboardingGate] Phase is onboarding, calling playTheme()')
-      playTheme()
-    } else {
-      console.log('[OnboardingGate] Phase is ready, stopping theme')
-      stopTheme()
-    }
-  }, [phase, themeEnabled, isUnlocked, playTheme, stopTheme])
+  }, [phase])
 
   const handlePrime = useCallback(() => {
     prime()

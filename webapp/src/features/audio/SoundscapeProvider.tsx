@@ -20,8 +20,10 @@ type ThemeState = {
 
 type SoundscapeContextValue = {
   playEffect: (cue: SoundCue) => void
+  playUi: () => void
   playTheme: () => void
   stopTheme: () => void
+  stopThemeHard: () => void
   prime: () => Promise<void>
   effectsEnabled: boolean
   setEffectsEnabled: (value: boolean) => void
@@ -38,8 +40,10 @@ const noop = () => {}
 
 const SoundscapeContext = createContext<SoundscapeContextValue>({
   playEffect: noop,
+  playUi: noop,
   playTheme: noop,
   stopTheme: noop,
+  stopThemeHard: noop,
   prime: () => {},
   effectsEnabled: true,
   setEffectsEnabled: noop,
@@ -71,10 +75,12 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
   const themeRef = useRef<ThemeState | null>(null)
   const [effectsEnabled, setEffectsEnabled] = useState(true)
   const [effectsVolume, setEffectsVolume] = useState(0.75)
-  const [themeEnabled, setThemeEnabled] = useState(true)
+  const [themeEnabled, setThemeEnabled] = useState(false)
   const [themeVolume, setThemeVolume] = useState(0.6)
   const bufferCache = useRef<Map<string, Promise<AudioBuffer>>>(new Map())
   const [isUnlocked, setIsUnlocked] = useState(false)
+  // Global switch: disable scenario SFX; only allow explicit UI clicks via playUi()
+  const SFX_ENABLED = false
 
   const ensureContext = useCallback(() => {
     const ctor = getAudioContextConstructor()
@@ -164,6 +170,8 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
 
   const playEffect = useCallback(
     (cue: SoundCue) => {
+      // All scenario cues disabled per request
+      if (!SFX_ENABLED) return
       if (!effectsEnabled) return
       const normalizedVolume = Math.max(0, Math.min(1, effectsVolume))
       if (normalizedVolume === 0) return
@@ -206,7 +214,7 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
       if (pool.length === 0) {
         const master = ctx.createGain()
         const baseVolume =
-          (cue === 'violence' ? 0.7 : cue === 'construction' ? 0.55 : cue === 'quiet' ? 0.25 : 0.35) *
+          (cue === 'violence' ? 0.9 : cue === 'construction' ? 0.7 : cue === 'quiet' ? 0.35 : 0.5) *
           normalizedVolume
         master.gain.setValueAtTime(0, now)
         master.gain.linearRampToValueAtTime(baseVolume, now + 0.02)
@@ -372,7 +380,7 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
       const chosen = pool[Math.floor(Math.random() * pool.length)]
       const master = ctx.createGain()
       const baseVolume =
-        (cue === 'violence' ? 0.75 : cue === 'construction' ? 0.6 : 0.4) * normalizedVolume
+        (cue === 'violence' ? 1.0 : cue === 'construction' ? 0.8 : 0.6) * normalizedVolume
       master.gain.setValueAtTime(0, now)
       master.gain.linearRampToValueAtTime(baseVolume, now + 0.02)
       master.connect(ctx.destination)
@@ -395,105 +403,88 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
     [ensureContext, effectsEnabled, effectsVolume, loadBuffer, createNoiseBuffer],
   )
 
-  const stopTheme = useCallback(() => {
-    console.log('[Audio] stopTheme called')
-    const state = themeRef.current
-    if (!state) {
-      console.log('[Audio] stopTheme: no theme currently playing')
-      return
+  // Explicit UI click that bypasses the freeze for micro-overlays
+  const playUi = useCallback(() => {
+    const ctx = ensureContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      void ctx.resume().catch(() => {})
     }
+    const now = ctx.currentTime
+    const gain = ctx.createGain()
+    const osc1 = ctx.createOscillator()
+    const osc2 = ctx.createOscillator()
+    osc1.type = 'sine'
+    osc2.type = 'sine'
+    osc1.frequency.setValueAtTime(1200, now)
+    osc2.frequency.setValueAtTime(800, now)
+    gain.gain.setValueAtTime(0, now)
+    const base = Math.max(0, Math.min(1, effectsVolume))
+    gain.gain.linearRampToValueAtTime(0.15 * base, now + 0.005)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08)
+    osc1.connect(gain)
+    osc2.connect(gain)
+    gain.connect(ctx.destination)
+    osc1.start(now)
+    osc2.start(now)
+    osc1.stop(now + 0.1)
+    osc2.stop(now + 0.1)
+    osc1.addEventListener('ended', () => gain.disconnect())
+  }, [ensureContext, effectsVolume])
+
+  const stopTheme = useCallback(() => {
+    const state = themeRef.current
+    if (!state) return
     const { master, source } = state
     const ctx = master.context
     const now = ctx.currentTime
-    console.log('[Audio] stopTheme: stopping immediately, source.loop:', source.loop)
 
-    // Disable looping immediately so it doesn't restart
+    // Fade out smoothly and stop after ~1.25s
     source.loop = false
-
-    // Stop immediately with very fast fade
     master.gain.cancelScheduledValues(now)
     master.gain.setValueAtTime(master.gain.value, now)
-    master.gain.linearRampToValueAtTime(0.0001, now + 0.05)
+    master.gain.linearRampToValueAtTime(0.0001, now + 1.2)
 
     try {
-      // Stop the source almost immediately
-      source.stop(now + 0.1)
-      console.log('[Audio] stopTheme: source.stop() called at', now, 'scheduled for', now + 0.1)
-    } catch (error) {
-      console.error('[Audio] stopTheme: error stopping source', error)
-    }
+      source.stop(now + 1.25)
+    } catch {}
 
-    // Disconnect and cleanup
     if (typeof window !== 'undefined') {
       window.setTimeout(() => {
         try {
           master.disconnect()
-          console.log('[Audio] stopTheme: master disconnected')
-        } catch (error) {
-          console.error('[Audio] stopTheme: error disconnecting', error)
-        }
-      }, 1000)
+        } catch {}
+      }, 1400)
     }
 
-    // Clear the ref immediately
     themeRef.current = null
-    console.log('[Audio] stopTheme: themeRef cleared')
+  }, [])
+
+  const stopThemeHard = useCallback(() => {
+    const state = themeRef.current
+    if (!state) return
+    const { master, source } = state
+    const ctx = master.context
+    try {
+      source.loop = false
+      source.stop()
+    } catch {}
+    try {
+      master.disconnect()
+    } catch {}
+    // Clear any scheduled ramps by setting immediate value
+    try {
+      const now = ctx.currentTime
+      master.gain.cancelScheduledValues(now)
+      master.gain.setValueAtTime(0, now)
+    } catch {}
+    themeRef.current = null
   }, [])
 
   const playTheme = useCallback(() => {
-    console.log('[Audio] playTheme called', { themeEnabled, themeVolume })
-    if (!themeEnabled) return
-    const ctx = ensureContext()
-    if (!ctx) {
-      console.log('[Audio] No audio context available')
-      return
-    }
-    console.log('[Audio] Audio context state:', ctx.state)
-    if (ctx.state === 'suspended') {
-      void ctx.resume().catch(() => {})
-    }
-
-    const normalized = Math.max(0, Math.min(1, themeVolume))
-    if (normalized === 0) {
-      stopTheme()
-      return
-    }
-
-    const existing = themeRef.current
-    if (existing) {
-      console.log('[Audio] Theme already playing, adjusting volume')
-      const now = ctx.currentTime
-      const { master } = existing
-      const targetGain = 0.35 * normalized
-      master.gain.cancelScheduledValues(now)
-      master.gain.linearRampToValueAtTime(targetGain, now + 0.6)
-      console.log('[Audio] Adjusting theme gain to:', targetGain)
-      return
-    }
-
-    console.log('[Audio] Loading theme track:', THEME_TRACK)
-    const master = ctx.createGain()
-    master.gain.setValueAtTime(0, ctx.currentTime)
-    master.connect(ctx.destination)
-
-    loadBuffer(ctx, THEME_TRACK)
-      .then((buffer) => {
-        console.log('[Audio] Theme loaded successfully, duration:', buffer.duration)
-        const source = ctx.createBufferSource()
-        source.buffer = buffer
-        source.loop = true
-        source.connect(master)
-        source.start(ctx.currentTime)
-        themeRef.current = { master, source, buffer }
-        const targetGain = 0.35 * normalized
-        master.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 2.2)
-        console.log('[Audio] Theme playback started, target gain:', targetGain)
-      })
-      .catch((error) => {
-        console.error('Failed to start theme audio', error)
-        master.disconnect()
-      })
-  }, [ensureContext, loadBuffer, stopTheme, themeEnabled, themeVolume])
+    // Theme music disabled globally
+    return
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -510,8 +501,10 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
   const value = useMemo(
     () => ({
       playEffect,
+      playUi,
       playTheme,
       stopTheme,
+      stopThemeHard,
       prime,
       effectsEnabled,
       setEffectsEnabled,
@@ -525,8 +518,10 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
     }),
     [
       playEffect,
+      playUi,
       playTheme,
       stopTheme,
+      stopThemeHard,
       prime,
       effectsEnabled,
       effectsVolume,
@@ -541,24 +536,9 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
   )
 
   useEffect(() => {
-    if (!themeEnabled) {
-      stopTheme()
-      return
-    }
-
-    // Only adjust volume if theme is already playing
-    // Don't auto-start the theme - let components control when to play
-    if (themeRef.current) {
-      const { master } = themeRef.current
-      const ctx = master.context
-      const now = ctx.currentTime
-      const normalized = Math.max(0, Math.min(1, themeVolume))
-      const targetGain = 0.35 * normalized
-      master.gain.cancelScheduledValues(now)
-      master.gain.linearRampToValueAtTime(targetGain, now + 0.4)
-    }
-    // Removed auto-play: else { playTheme() }
-  }, [themeEnabled, themeVolume, stopTheme])
+    // Always stop if any theme was somehow started; do not auto-start
+    stopTheme()
+  }, [themeEnabled, themeVolume, stopTheme, isUnlocked, playTheme])
 
   return <SoundscapeContext.Provider value={value}>{children}</SoundscapeContext.Provider>
 }
