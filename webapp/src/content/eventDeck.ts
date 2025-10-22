@@ -70,6 +70,24 @@ export type MicroEvent = {
 const microEvents: WeightedOption<MicroEvent>[] = [
   {
     value: {
+      id: 'micro-birth-catechumen',
+      description: 'A child is born among the catechumens; friends rally in joy.',
+      effects: { members: 1, cohesion: 1 },
+      soundEffect: 'discussion',
+    },
+    weight: 4,
+  },
+  {
+    value: {
+      id: 'micro-elder-dies',
+      description: 'A respected elder falls asleep in the Lord; prayers fill the nave.',
+      effects: { members: -1, cohesion: 2 },
+      soundEffect: 'chant',
+    },
+    weight: 3,
+  },
+  {
+    value: {
       id: 'micro-alms-widow',
       description: 'A widow shares her last loaf; the almonry stirs to action.',
       effects: { cohesion: 2, influence: 1 },
@@ -2474,8 +2492,9 @@ export function drawEvent(
       if (fallback.length > 0) return fallback[Math.floor(rng() * fallback.length)]
     }
 
-    // Otherwise reuse a prior event from the current era (avoid showing later eras too early)
-    const reusePool = deck.events.filter((event) => event.era === era)
+    // Otherwise reuse a prior non-intro event from the current era
+    // (avoid showing later eras too early, and never repeat the intro scenario)
+    const reusePool = deck.events.filter((event) => event.era === era && !event.isIntro)
     if (reusePool.length === 0) return null
     return reusePool[Math.floor(rng() * reusePool.length)]
   }

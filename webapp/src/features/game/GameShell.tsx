@@ -165,13 +165,23 @@ export function GameShell() {
 
   const countdownSeconds = Math.max(0, Math.ceil(cooldownRemainingMs / 1000))
 
-  const sceneImage = currentEvent?.sceneImage ?? '/assets/church_being_built.png'
-  const finalBackdrop = '/assets/title.png'
-  const isPreviewFinal = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('previewFinal')
-  const backdropImage = phase === 'complete' || isPreviewFinal ? finalBackdrop : sceneImage
-  const sceneTitle = currentEvent?.sceneTitle ?? 'Basilica Under Construction'
+  // Preserve the final event's scene when transitioning to complete
+  const lastEventRef = useRef<GameEvent | null>(null)
+  if (currentEvent) {
+    lastEventRef.current = currentEvent
+  }
+
+  const sceneImage =
+    currentEvent?.sceneImage ??
+    lastEventRef.current?.sceneImage ??
+    '/assets/church_being_built.png'
+  const sceneTitle =
+    currentEvent?.sceneTitle ??
+    lastEventRef.current?.sceneTitle ??
+    'Basilica Under Construction'
   const sceneCaption =
     currentEvent?.sceneCaption ??
+    lastEventRef.current?.sceneCaption ??
     "Timber scaffolds clutch the nave as masons pause for guidance. Another chapter in the community's story is on the way."
 
   // Choice disabling computed after chapter slide state is known (set below)
@@ -600,6 +610,11 @@ export function GameShell() {
               </div>
             </div>
           ) : null}
+          {/* Always show scene content, overlay complete card on top */}
+          <div className={`${styles.sceneContent} ${styles.fadeIn}`} key={currentEvent?.id ?? phase}>
+            <p className={styles.sceneTitle}>{sceneTitle}</p>
+            <p className={styles.sceneCaption}>{sceneCaption}</p>
+          </div>
           {phase === 'complete' ? (
             <>
               {climaxActive ? (
@@ -623,12 +638,7 @@ export function GameShell() {
                 </div>
               ) : null}
             </>
-          ) : (
-            <div className={`${styles.sceneContent} ${styles.fadeIn}`} key={currentEvent?.id ?? phase}>
-              <p className={styles.sceneTitle}>{sceneTitle}</p>
-              <p className={styles.sceneCaption}>{sceneCaption}</p>
-            </div>
-          )}
+          ) : null}
         </section>
 
         <section

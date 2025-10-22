@@ -375,9 +375,14 @@ export function useGameEngine() {
     const updatedStats = applyStatDelta(state.stats, scaled)
     // Ensure time progresses meaningfully per event; larger steps in later eras
     const minStep = state.year < 200 ? 3 : state.year < 313 ? 6 : state.year < 430 ? 10 : 15
-    const effectiveAdvance = Math.max(outcome.yearAdvance, minStep)
+    const baseAdvance = Math.max(outcome.yearAdvance, minStep)
+    // Decade pacing: snap to the next decade boundary (e.g., 118 -> 120)
+    const nextDecade = Math.ceil((state.year + 1) / 10) * 10
+    const decadeAdvance = Math.max(baseAdvance, nextDecade - state.year)
+    const clampedNextYear = Math.min(500, state.year + decadeAdvance)
+    const effectiveAdvance = clampedNextYear - state.year
     const adjustedOutcome: EventOutcome = { ...outcome, yearAdvance: effectiveAdvance }
-    const nextImperial = getImperialStatus(state.year + effectiveAdvance)
+    const nextImperial = getImperialStatus(clampedNextYear)
 
     dispatch({
       type: 'resolveChoice',
