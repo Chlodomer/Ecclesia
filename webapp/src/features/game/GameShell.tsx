@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useSoundscape } from '@/features/audio/SoundscapeProvider'
+import { useCountUp } from '@/hooks/useCountUp'
 import { useStudentSession } from '@/features/onboarding/OnboardingGate'
 
 import styles from './GameShell.module.css'
 import { useGameEngine } from './state/gameEngine'
 
 function eraKeyFromYear(year: number): 'Founding' | 'Persecution' | 'Imperial' | 'Fading' {
-  if (year < 150) return 'Founding'
+  // foundation: 100–200; persecution: 200–313; imperial: 313–430; fading: 430–500
+  if (year < 200) return 'Founding'
   if (year < 313) return 'Persecution'
-  if (year < 411) return 'Imperial'
+  if (year < 430) return 'Imperial'
   return 'Fading'
 }
 
@@ -71,15 +73,12 @@ export function GameShell() {
     playUi()
   }, [microEventRevealed, playUi])
 
-  // Click when scenarios switch (new event appears)
+  // Scenario switch sound disabled (less intrusive experience)
   const prevEventIdRef = useRef<string | null>(null)
   useEffect(() => {
     const id = currentEvent?.id ?? null
-    if (id && prevEventIdRef.current && prevEventIdRef.current !== id) {
-      playUi()
-    }
     if (id) prevEventIdRef.current = id
-  }, [currentEvent?.id, playUi])
+  }, [currentEvent?.id])
 
   // Meanwhile overlay visibility and exit timing
   const [showMeanwhile, setShowMeanwhile] = useState(false)
@@ -96,6 +95,22 @@ export function GameShell() {
       window.clearTimeout(done)
     }
   }, [microEventRevealed])
+
+  // Shuffle reflection options per pending choice to avoid correct answer always first
+  const [reflectionOrder, setReflectionOrder] = useState<number[] | null>(null)
+  useEffect(() => {
+    const opts = state.pendingChoice?.reflection?.options
+    if (!opts) {
+      setReflectionOrder(null)
+      return
+    }
+    const order = opts.map((_, i) => i)
+    for (let i = order.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[order[i], order[j]] = [order[j], order[i]]
+    }
+    setReflectionOrder(order)
+  }, [state.pendingChoice?.id])
 
   // Ensure onboarding theme is faded out once the game shell mounts
   // Do not stop theme on game mount; preserve ongoing music from onboarding unless user toggles it
@@ -151,19 +166,23 @@ export function GameShell() {
   const countdownSeconds = Math.max(0, Math.ceil(cooldownRemainingMs / 1000))
 
   const sceneImage = currentEvent?.sceneImage ?? '/assets/church_being_built.png'
+  const finalBackdrop = '/assets/title.png'
+  const isPreviewFinal = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('previewFinal')
+  const backdropImage = phase === 'complete' || isPreviewFinal ? finalBackdrop : sceneImage
   const sceneTitle = currentEvent?.sceneTitle ?? 'Basilica Under Construction'
   const sceneCaption =
     currentEvent?.sceneCaption ??
     "Timber scaffolds clutch the nave as masons pause for guidance. Another chapter in the community's story is on the way."
 
-  const disableChoices = phase !== 'decision' && phase !== 'confirm'
+  // Choice disabling computed after chapter slide state is known (set below)
   const lastEvent = log.length > 0 ? log[log.length - 1] : null
 
   const uiEraKey: 'Founding' | 'Persecution' | 'Imperial' | 'Fading' = useMemo(() => {
     const eventEra = currentEvent?.era ?? null
     if (eventEra === 'founding') return 'Founding'
     if (eventEra === 'crisis') return 'Persecution'
-    if (eventEra === 'imperial') return year >= 411 ? 'Fading' : 'Imperial'
+    if (eventEra === 'imperial') return year >= 430 ? 'Fading' : 'Imperial'
+    if (eventEra === 'fading') return 'Fading'
     // Fallback to year-derived if no event yet
     return eraKeyFromYear(year)
   }, [currentEvent?.era, year])
@@ -197,6 +216,115 @@ export function GameShell() {
 
   const victoryProgress = Math.min(100, Math.round((stats.members / 500) * 100))
   const cohesionRisk = stats.cohesion <= 30 ? 'At risk of fracture—prioritize unity.' : 'Cohesion stable.'
+
+  // Animated number subcomponent to keep hooks usage valid
+  function AnimatedNumber({ value, duration = 600 }: { value: number; duration?: number }) {
+    const display = useCountUp(value, duration)
+    return <>{display}</>
+  }
+
+  // Download final report JSON capturing choices
+  function generateReportJson() {
+    const data = {
+      meta: {
+        generatedAt: new Date().toISOString(),
+        version: '3.0',
+      },
+      session: session
+        ? { id: session.id, fullName: session.fullName, email: session.email }
+        : null,
+      outcome: ending,
+      stats: { ...stats },
+      totalDecisions: log.length,
+      choices: log.map((entry) => ({
+        timestamp: entry.timestamp,
+        year: entry.yearAfter,
+        event: entry.eventTitle,
+        choice: entry.choiceLabel,
+        reflectionPrompt: entry.reflectionPrompt ?? null,
+        reflectionAnswer: entry.reflectionAnswer ?? null,
+        reflectionCorrect: entry.reflectionCorrect,
+      })),
+    }
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    a.href = url
+    a.download = `ecclesia_report_${stamp}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  // Background crossfade state
+  const [prevSceneImage, setPrevSceneImage] = useState<string | null>(null)
+  const [bgTransitioning, setBgTransitioning] = useState(false)
+  const lastSceneImageRef = useRef<string | null>(null)
+  useEffect(() => {
+    const last = lastSceneImageRef.current
+    if (last && last !== sceneImage) {
+      setPrevSceneImage(last)
+      setBgTransitioning(true)
+      const t = window.setTimeout(() => {
+        setPrevSceneImage(null)
+        setBgTransitioning(false)
+      }, 800)
+      lastSceneImageRef.current = sceneImage
+      return () => window.clearTimeout(t)
+    }
+    lastSceneImageRef.current = sceneImage
+  }, [sceneImage])
+
+  // Chapter slide for era transitions (movie-style slide)
+  const [showEraChapter, setShowEraChapter] = useState(false)
+  const [eraChapterKey, setEraChapterKey] = useState(0)
+  const lastEraForChapterRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!session) return
+    const currentUiEra = uiEraKey
+    const firstShow = !lastEraForChapterRef.current
+    const eraChanged = lastEraForChapterRef.current && lastEraForChapterRef.current !== currentUiEra
+    if (firstShow || eraChanged) {
+      lastEraForChapterRef.current = currentUiEra
+      setShowEraChapter(true)
+      setEraChapterKey((k) => k + 1)
+      const total = 2400 // fade in (600), hold (1200), fade out (600)
+      const t = window.setTimeout(() => setShowEraChapter(false), total)
+      return () => window.clearTimeout(t)
+    }
+  }, [uiEraKey, session])
+
+  // Climax sequence on final end, then show complete card and closing report
+  const [climaxActive, setClimaxActive] = useState(false)
+  const [climaxDone, setClimaxDone] = useState(false)
+  const [reportVisible, setReportVisible] = useState(false)
+  const prevPhaseRef = useRef<string | null>(null)
+  useEffect(() => {
+    const prev = prevPhaseRef.current
+    if (phase === 'complete' && prev !== 'complete') {
+      // Entering final state → play short climax, then reveal complete card, then report
+      setClimaxActive(true)
+      setClimaxDone(false)
+      setReportVisible(false)
+      const t1 = window.setTimeout(() => {
+        setClimaxActive(false)
+        setClimaxDone(true)
+      }, 1200)
+      const t2 = window.setTimeout(() => setReportVisible(true), 2800)
+      prevPhaseRef.current = phase
+      return () => {
+        window.clearTimeout(t1)
+        window.clearTimeout(t2)
+      }
+    }
+    prevPhaseRef.current = phase
+  }, [phase])
+
+  // Choices are disabled outside decision/confirm; chapter slide blocks via overlay z-index
+  const disableChoices = phase !== 'decision' && phase !== 'confirm'
 
   // Collapsible insights section
   const [insightsOpen, setInsightsOpen] = useState(false)
@@ -283,18 +411,7 @@ export function GameShell() {
       : styles.eraFading
   }`
 
-  // Era transition screen control
-  const [showEraTransition, setShowEraTransition] = useState(false)
-  const lastEraRef = useRef<string | null>(null)
-  useEffect(() => {
-    const currentUiEra = uiEraKey
-    if (lastEraRef.current && lastEraRef.current !== currentUiEra) {
-      setShowEraTransition(true)
-      const t = window.setTimeout(() => setShowEraTransition(false), 1400)
-      return () => window.clearTimeout(t)
-    }
-    lastEraRef.current = currentUiEra
-  }, [uiEraKey])
+  // Chapter slide replaces previous full-screen era overlay
 
   // Imperial status hover hint
   function getImperialStatusSummary(status: string): string {
@@ -343,13 +460,6 @@ export function GameShell() {
 
   return (
     <main className={shellClassName}>
-      {showEraTransition ? (
-        <div className={styles.eraTransitionOverlay} role="dialog" aria-live="polite">
-          <div className={styles.eraTransitionCard}>
-            <h3 className={styles.eraTransitionTitle}>{eraSummary.label}</h3>
-          </div>
-        </div>
-      ) : null}
       <div className={styles.primaryGrid}>
         <section
           className={styles.timelineColumn}
@@ -375,10 +485,15 @@ export function GameShell() {
 
           <div className={styles.timelineStats}>
             {statEntries.map((stat) => (
-              <div className={styles.statCard} key={stat.label}>
+              <div
+                className={`${styles.statCard} ${
+                  stat.delta != null && stat.delta !== 0 ? styles.statChanged : ''
+                }`}
+                key={stat.label}
+              >
                 <span className={styles.statLabel}>{stat.label}</span>
                 <span className={styles.statValue}>
-                  {stat.value}
+                  <AnimatedNumber value={stat.value} />
                   {stat.delta != null && stat.delta !== 0 ? (
                     <span
                       className={`${styles.statDelta} ${
@@ -412,12 +527,46 @@ export function GameShell() {
           </div>
         </section>
 
-        <section className={styles.sceneColumn} aria-label="Community scene">
-          <div className={styles.sceneBackground} style={{ backgroundImage: `url(${sceneImage})` }} />
+        <section
+          className={`${styles.sceneColumn} ${phase === 'complete' ? styles.phaseComplete : ''} ${
+            showEraChapter ? styles.chapterActive : ''
+          }`}
+          aria-label="Community scene"
+        >
+          <div
+            className={styles.sceneBackgroundBase}
+            style={{ backgroundImage: `url(${backdropImage})` }}
+            aria-hidden
+          />
+          {phase !== 'complete' ? (
+            <div
+              className={`${styles.sceneBackgrounds} ${bgTransitioning ? styles.sceneBackgroundTransitioning : ''}`}
+              aria-hidden
+            >
+              {prevSceneImage ? (
+                <div
+                  className={`${styles.sceneBackgroundLayer} ${styles.sceneBackgroundPrevious}`}
+                  style={{ backgroundImage: `url(${prevSceneImage})` }}
+                />
+              ) : null}
+              <div
+                className={`${styles.sceneBackgroundLayer} ${styles.sceneBackgroundCurrent}`}
+                style={{ backgroundImage: `url(${sceneImage})` }}
+              />
+            </div>
+          ) : null}
           <div className={styles.sceneOverlay} />
-          <div className={styles.eraOverlay} aria-hidden="true">
-            {eraSummary.label}
-          </div>
+          {phase !== 'complete' ? (
+            <div className={styles.eraOverlay} aria-hidden="true">{eraSummary.label}</div>
+          ) : null}
+          {showEraChapter ? (
+            <div className={styles.eraChapterOverlay} role="dialog" aria-live="polite" key={eraChapterKey}>
+              <div className={styles.eraChapterSlide}>
+                <h3 className={styles.eraChapterTitle}>{eraSummary.label}</h3>
+                <p className={styles.eraChapterBrief}>{eraSummary.briefing}</p>
+              </div>
+            </div>
+          ) : null}
           {showMeanwhile && state.microEventPending ? (
             <div
               className={`${styles.meanwhileOverlay} ${
@@ -452,16 +601,28 @@ export function GameShell() {
             </div>
           ) : null}
           {phase === 'complete' ? (
-            <div className={styles.completeCard}>
-              <h2 className={styles.completeTitle}>
-                {ending === 'victory' ? 'Basilica Dawn' : 'Community Scattered'}
-              </h2>
-              <p className={styles.completeSummary}>
-                {ending === 'victory'
-                  ? 'Your community endures across centuries, anchoring a basilica that welcomes generations of disciples.'
-                  : 'Cohesion fell below a sustainable threshold. The fragile community disperses, its story a cautionary tale for future shepherds.'}
-              </p>
-            </div>
+            <>
+              {climaxActive ? (
+                <div className={styles.climaxOverlay} aria-hidden="true">
+                  <div className={styles.climaxBurst} />
+                </div>
+              ) : null}
+              {climaxDone && !reportVisible ? (
+                <div className={styles.completeCard}>
+                  <h2 className={styles.completeTitle}>
+                    {ending === 'victory' ? 'Basilica Dawn' : 'Community Scattered'}
+                  </h2>
+                  <p className={styles.completeSummary}>
+                    {ending === 'victory'
+                      ? 'Your community endures across centuries, anchoring a basilica that welcomes generations of disciples.'
+                      : 'Cohesion fell below a sustainable threshold. The fragile community disperses, its story a cautionary tale for future shepherds.'}
+                  </p>
+                  <button type="button" className={styles.confirmButton} onClick={() => setReportVisible(true)}>
+                    View Report
+                  </button>
+                </div>
+              ) : null}
+            </>
           ) : (
             <div className={`${styles.sceneContent} ${styles.fadeIn}`} key={currentEvent?.id ?? phase}>
               <p className={styles.sceneTitle}>{sceneTitle}</p>
@@ -483,7 +644,9 @@ export function GameShell() {
             This is where you make your choices
           </div>
           {phase === 'loading' ? (
-            <div className={styles.loadingState}>Preparing the next era…</div>
+            <div className={styles.loadingState}>
+              <span className={styles.spinner} /> Preparing the next era…
+            </div>
           ) : currentEvent ? (
             <>
               <div className={styles.eventMeta}>
@@ -497,30 +660,80 @@ export function GameShell() {
                 <header>
                   <h3 className={styles.eventHeading}>{currentEvent.title}</h3>
                 </header>
+                {currentEvent.choices.some((choice) => {
+                  const req = (choice as any).requirements
+                  if (!req) return false
+                  const unmet =
+                    (req.resources != null && stats.resources < req.resources) ||
+                    (req.influence != null && stats.influence < req.influence) ||
+                    (req.cohesion != null && stats.cohesion < req.cohesion) ||
+                    (req.tags && req.tags.some((t: string) => !state.tags.has(t))) ||
+                    (req.forbiddenTags && req.forbiddenTags.some((t: string) => state.tags.has(t)))
+                  return unmet
+                }) ? (
+                  <p className={styles.notice}>
+                    Some options are locked due to current stats or earlier choices. Hover to see why.
+                  </p>
+                ) : null}
                 <p className={styles.eventNarrative}>{currentEvent.narrative}</p>
 
                 {(phase === 'decision' || phase === 'confirm') && (
                   <div className={styles.choiceList}>
-                  {currentEvent.choices.map((choice) => {
-                    const isActive = pendingChoice?.id === choice.id
-                    const handleClick = () => {
-                      // UI sounds frozen; only scenario cues play on outcomes
-                      selectChoice(choice)
-                    }
-                    return (
-                      <button
-                        type="button"
-                        className={`${styles.choiceButton} ${isActive ? styles.choiceButtonActive : ''}`}
-                        key={choice.id}
-                        onClick={handleClick}
-                        disabled={disableChoices && !isActive}
-                      >
+                    {currentEvent.choices.map((choice) => {
+                      const isActive = pendingChoice?.id === choice.id
+                      const meets = (() => {
+                        const req = choice.requirements
+                        if (!req) return true
+                        if (req.resources != null && stats.resources < req.resources) return false
+                        if (req.influence != null && stats.influence < req.influence) return false
+                        if (req.cohesion != null && stats.cohesion < req.cohesion) return false
+                        const tags = state.tags
+                        if (req.tags && req.tags.some((t) => !tags.has(t))) return false
+                        if (req.anyTags && !req.anyTags.some((t) => tags.has(t))) return false
+                        if (req.forbiddenTags && req.forbiddenTags.some((t) => tags.has(t))) return false
+                        return true
+                      })()
+                      const unmetText = (() => {
+                        const req = choice.requirements
+                        if (!req) return [] as string[]
+                        const out: string[] = []
+                        if (req.resources != null && stats.resources < req.resources)
+                          out.push(`Resources ≥ ${req.resources}`)
+                        if (req.influence != null && stats.influence < req.influence)
+                          out.push(`Influence ≥ ${req.influence}`)
+                        if (req.cohesion != null && stats.cohesion < req.cohesion)
+                          out.push(`Cohesion ≥ ${req.cohesion}`)
+                        if (req.tags && req.tags.some((t) => !state.tags.has(t))) out.push('Prior action required')
+                        if (req.anyTags && !req.anyTags.some((t) => state.tags.has(t))) out.push('One of several prior actions required')
+                        if (req.forbiddenTags && req.forbiddenTags.some((t) => state.tags.has(t)))
+                          out.push('Blocked by a prior decision')
+                        return out
+                      })()
+                      const handleClick = () => {
+                        if (!meets) return
+                        selectChoice(choice)
+                      }
+                      return (
+                        <button
+                          type="button"
+                          className={`${styles.choiceButton} ${isActive ? styles.choiceButtonActive : ''} ${
+                            meets ? '' : styles.choiceLocked
+                          }`}
+                          key={choice.id}
+                          onClick={handleClick}
+                          disabled={disableChoices || !meets}
+                        >
                           <p className={styles.choiceTitle}>{choice.label}</p>
                           {choice.reflection ? (
                             <p className={styles.choiceHint}>{choice.reflection.prompt}</p>
                           ) : (
                             <p className={styles.choiceHint}>Proceed without reflection prompt.</p>
                           )}
+                          {!meets && unmetText.length > 0 ? (
+                            <p className={styles.lockNote}>
+                              Requires: <span className={styles.lockReqList}>{unmetText.join(' · ')}</span>
+                            </p>
+                          ) : null}
                         </button>
                       )
                     })}
@@ -534,18 +747,20 @@ export function GameShell() {
                       <>
                         <p>{reflectionPrompt.prompt}</p>
                         <div className={styles.reflectionOptions}>
-                          {reflectionPrompt.options.map((option, index) => (
-                            <label key={option} className={styles.reflectionOption}>
-                              <input
-                                type="radio"
-                                name="reflection-option"
-                                value={index}
-                                checked={state.pendingReflectionAnswer === index}
-                                onChange={() => setReflectionAnswer(index)}
-                              />
-                              <span>{option}</span>
-                            </label>
-                          ))}
+                          {(reflectionOrder ?? reflectionPrompt.options.map((_, i) => i)).map(
+                            (origIndex, displayIndex) => (
+                              <label key={`${origIndex}-${reflectionPrompt.options[origIndex]}`} className={styles.reflectionOption}>
+                                <input
+                                  type="radio"
+                                  name="reflection-option"
+                                  value={displayIndex}
+                                  checked={state.pendingReflectionAnswer === origIndex}
+                                  onChange={() => setReflectionAnswer(origIndex)}
+                                />
+                                <span>{reflectionPrompt.options[origIndex]}</span>
+                              </label>
+                            ),
+                          )}
                         </div>
                       </>
                     ) : (
@@ -564,14 +779,14 @@ export function GameShell() {
                 ) : null}
 
                 {phase === 'resolving' && resolvedOutcome ? (
-                  <div className={styles.outcomeCard}>
+                  <div className={`${styles.outcomeCard} ${styles.outcomeCardReveal}`}>
                     <strong>Outcome</strong>
                     <p>{resolvedOutcome.description}</p>
                   </div>
                 ) : null}
 
                 {phase === 'cooldown' && resolvedOutcome ? (
-                  <div className={styles.outcomeCard}>
+                  <div className={`${styles.outcomeCard} ${styles.outcomeCardReveal}`}>
                     <strong>Outcome</strong>
                     <p>{resolvedOutcome.description}</p>
                     <p className={styles.cooldownNotice}>
@@ -743,6 +958,51 @@ export function GameShell() {
         </div>
         </section>
         </div>
+        {(phase === 'complete' && reportVisible) || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('previewFinal')) ? (
+          <div className={styles.reportOverlay} role="dialog" aria-modal="true">
+            <div className={styles.reportBackdrop} aria-hidden />
+            <div className={styles.reportVignette} aria-hidden />
+            <div className={styles.reportCard}>
+              <h2 className={styles.finalEpithet}>Extra ecclesiam nulla salus.</h2>
+              <p className={styles.reportLead}>
+                {ending === 'victory'
+                  ? 'Across a long march of years, the community endured. Your leadership balanced growth with unity, stewarded scarce resources, and sustained influence amid shifting powers.'
+                  : 'Through trials and shifting winds, cohesion faltered. The community’s thread thinned beyond repair, offering sober guidance for those who lead in fragile times.'}
+              </p>
+              <h3 className={styles.reportTitle}>Closing Report</h3>
+              <div className={styles.reportGrid}>
+                <div>
+                  <strong>Members</strong>
+                  <p>{stats.members}</p>
+                </div>
+                <div>
+                  <strong>Cohesion</strong>
+                  <p>{stats.cohesion}</p>
+                </div>
+                <div>
+                  <strong>Resources</strong>
+                  <p>{stats.resources}</p>
+                </div>
+                <div>
+                  <strong>Influence</strong>
+                  <p>{stats.influence}</p>
+                </div>
+              </div>
+              <p className={styles.reportMeta}>Decisions taken: {log.length}</p>
+              <p className={styles.reportSummary}>
+                {ending === 'victory'
+                  ? 'The work of shepherding bore fruit: a resilient body, a house of worship, and a legacy that outlasts the empire’s fortunes.'
+                  : 'The story cautions: numbers and patronage cannot substitute for unity. Future cohorts may yet rebuild from these lessons.'}
+              </p>
+              <div className={styles.reportActions}>
+                <button type="button" className={styles.confirmButton} onClick={generateReportJson}>
+                  Generate Report
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
       </div>
     </main>
   )

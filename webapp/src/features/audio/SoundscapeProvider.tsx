@@ -416,19 +416,20 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
     const osc2 = ctx.createOscillator()
     osc1.type = 'sine'
     osc2.type = 'sine'
-    osc1.frequency.setValueAtTime(1200, now)
-    osc2.frequency.setValueAtTime(800, now)
+    // Softer, lower-pitch click
+    osc1.frequency.setValueAtTime(520, now)
+    osc2.frequency.setValueAtTime(390, now)
     gain.gain.setValueAtTime(0, now)
     const base = Math.max(0, Math.min(1, effectsVolume))
-    gain.gain.linearRampToValueAtTime(0.15 * base, now + 0.005)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08)
+    gain.gain.linearRampToValueAtTime(0.06 * base, now + 0.005)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06)
     osc1.connect(gain)
     osc2.connect(gain)
     gain.connect(ctx.destination)
     osc1.start(now)
     osc2.start(now)
-    osc1.stop(now + 0.1)
-    osc2.stop(now + 0.1)
+    osc1.stop(now + 0.07)
+    osc2.stop(now + 0.07)
     osc1.addEventListener('ended', () => gain.disconnect())
   }, [ensureContext, effectsVolume])
 

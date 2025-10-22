@@ -20,6 +20,8 @@ export type EventOutcome = {
   effects: StatDelta
   yearAdvance: number
   soundEffect?: SoundCue
+  addTags?: string[]
+  removeTags?: string[]
 }
 
 export type EventChoice = {
@@ -27,11 +29,19 @@ export type EventChoice = {
   label: string
   reflection: ReflectionPrompt | null
   outcomes: WeightedOption<EventOutcome>[]
+  requirements?: {
+    resources?: number
+    influence?: number
+    cohesion?: number
+    tags?: string[]
+    anyTags?: string[]
+    forbiddenTags?: string[]
+  }
 }
 
 export type GameEvent = {
   id: string
-  era: 'founding' | 'crisis' | 'imperial'
+  era: 'founding' | 'crisis' | 'imperial' | 'fading'
   yearHint: number
   isIntro?: boolean
   title: string
@@ -53,6 +63,8 @@ export type MicroEvent = {
   description: string
   effects: StatDelta
   soundEffect?: SoundCue
+  minYear?: number
+  maxYear?: number
 }
 
 const microEvents: WeightedOption<MicroEvent>[] = [
@@ -92,10 +104,188 @@ const microEvents: WeightedOption<MicroEvent>[] = [
     },
     weight: 5,
   },
+  {
+    value: {
+      id: 'micro-catechumens-arrive',
+      description: 'Two travelers ask to join the catechumenate after a household meal.',
+      effects: { members: 3 },
+      soundEffect: 'discussion',
+    },
+    weight: 4,
+  },
+  {
+    value: {
+      id: 'micro-almonry-short',
+      description: 'The almonry runs short; deacons plan a collection.',
+      effects: { resources: -2, influence: 1 },
+      soundEffect: 'quiet',
+    },
+    weight: 3,
+  },
+  {
+    value: {
+      id: 'micro-presbyter-visits',
+      description: 'A presbyter visits the sick; their family attends vespers.',
+      effects: { members: 2, cohesion: 1 },
+      soundEffect: 'discussion',
+    },
+    weight: 4,
+  },
+]
+
+// Donation and income micro-events to help resource stability
+const donationMicroEvents: WeightedOption<MicroEvent>[] = [
+  {
+    value: {
+      id: 'micro-donation-patron',
+      description: 'A local patron quietly funds repairs for the basilica roof.',
+      effects: { resources: 8, influence: 1 },
+      soundEffect: 'construction',
+    },
+    weight: 5,
+  },
+  {
+    value: {
+      id: 'micro-bequest-estate',
+      description: 'An elder bequeaths a small estate; proceeds bolster the almonry.',
+      effects: { resources: 10, influence: 1 },
+      soundEffect: 'quiet',
+    },
+    weight: 4,
+  },
+  {
+    value: {
+      id: 'micro-market-proceeds',
+      description: 'Market-day breads sell out after vespers; deacons tally the purse.',
+      effects: { resources: 6, cohesion: 1 },
+      soundEffect: 'discussion',
+    },
+    weight: 5,
+  },
+  {
+    value: {
+      id: 'micro-guild-offering',
+      description: 'The potters’ guild donates clay for lamps through winter.',
+      effects: { resources: 5, influence: 1 },
+      soundEffect: 'crowd',
+    },
+    weight: 4,
+  },
+  {
+    value: {
+      id: 'micro-anonymous-purse',
+      description: 'At dawn, an anonymous purse is found at the narthex.',
+      effects: { resources: 7 },
+      soundEffect: 'quiet',
+    },
+    weight: 5,
+  },
 ]
 
 export function drawMicroEvent(seed: number = Date.now()): MicroEvent {
   const rng = createSeededRng(seed)
+  return pickWeightedOption(microEvents, rng)
+}
+
+// Historically significant micro-events that appear around key years
+const historicalMicroEvents: WeightedOption<MicroEvent>[] = [
+  {
+    value: {
+      id: 'hist-milvian-bridge-312',
+      description: '312: Battle of the Milvian Bridge — imperial favor tilts toward the church.',
+      effects: { influence: 5, cohesion: 2 },
+      soundEffect: 'crowd',
+      minYear: 311,
+      maxYear: 314,
+    },
+    weight: 6,
+  },
+  {
+    value: {
+      id: 'hist-nicaea-325',
+      description: '325: Council of Nicaea — creed unifies many churches under shared confession.',
+      effects: { cohesion: 5, influence: 3 },
+      soundEffect: 'chant',
+      minYear: 324,
+      maxYear: 327,
+    },
+    weight: 6,
+  },
+  {
+    value: {
+      id: 'hist-constantinople-381',
+      description: '381: Council of Constantinople — the creed receives reaffirmation and expansion.',
+      effects: { cohesion: 3, influence: 3 },
+      soundEffect: 'chant',
+      minYear: 380,
+      maxYear: 382,
+    },
+    weight: 5,
+  },
+  {
+    value: {
+      id: 'hist-augustine-dies-430',
+      description: '430: Death of Augustine of Hippo — teachers mourn, writings spread widely.',
+      effects: { influence: 2 },
+      soundEffect: 'quiet',
+      minYear: 429,
+      maxYear: 431,
+    },
+    weight: 4,
+  },
+  {
+    value: {
+      id: 'hist-rome-falls-476',
+      description: '476: Deposition of Romulus Augustulus — imperial order wanes; local leadership rises.',
+      effects: { cohesion: 2, influence: -2 },
+      soundEffect: 'crowd',
+      minYear: 475,
+      maxYear: 477,
+    },
+    weight: 6,
+  },
+]
+
+function donationScaleForYear(year: number): number {
+  // Scale from ~1.0 at 100 CE up to ~1.8 by 500 CE
+  const clamped = Math.max(100, Math.min(500, year))
+  const t = (clamped - 100) / 400
+  return 1 + 0.8 * t
+}
+
+function scaledDonation(m: MicroEvent, year: number): MicroEvent {
+  if (!m.effects.resources) return m
+  const factor = donationScaleForYear(year)
+  const scaled = Math.max(1, Math.round(m.effects.resources * factor))
+  return { ...m, effects: { ...m.effects, resources: scaled } }
+}
+
+export function drawMicroEventForResources(
+  resources: number,
+  year: number,
+  seed: number = Date.now(),
+  historyIds: string[] = [],
+): MicroEvent {
+  const rng = createSeededRng(seed)
+  // Prefer an eligible historical event once per session
+  const eligibleHist = historicalMicroEvents
+    .map((w) => w.value)
+    .filter((m) => (m.minYear == null || year >= m.minYear) && (m.maxYear == null || year <= m.maxYear))
+    .filter((m) => !historyIds.includes(m.id))
+  if (eligibleHist.length > 0) {
+    return eligibleHist[Math.floor(rng() * eligibleHist.length)]
+  }
+  // If resources are low, bias toward donation/income events
+  if (resources <= 10) {
+    const m = pickWeightedOption(donationMicroEvents, rng)
+    return scaledDonation(m, year)
+  }
+  // Occasionally sprinkle donations even when stable
+  const roll = Math.floor(rng() * 5)
+  if (roll === 0) {
+    const m = pickWeightedOption(donationMicroEvents, rng)
+    return scaledDonation(m, year)
+  }
   return pickWeightedOption(microEvents, rng)
 }
 
@@ -138,6 +328,140 @@ export const baseDeck: GameDeck = {
                 soundEffect: 'sermon',
               },
               weight: 1,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'provincial-pilgrimage',
+      era: 'fading',
+      yearHint: 430,
+      title: 'Provincial Pilgrimage',
+      narrative:
+        'Rumors of relics and charity spread. A provincial pilgrimage route could bring waves of seekers — but also opportunists.',
+      sceneImage: '/assets/procession.png',
+      sceneTitle: 'Pilgrims on the Road',
+      sceneCaption:
+        'Lanterns bob along the ridge as pilgrims descend toward the basilica in the cool dawn.',
+      choices: [
+        {
+          id: 'pilgrimage-host',
+          label: 'Host an annual pilgrimage with catechesis stations.',
+          reflection: {
+            prompt: 'Why pair pilgrimage with teaching?',
+            options: ['To anchor zeal in formation.', 'To impress magistrates.', 'To raise stall rents.'],
+            correctIndex: 0,
+          },
+          requirements: { anyTags: ['mass-catechumens', 'miracle-testimonies'] },
+          outcomes: [
+            {
+              value: {
+                id: 'pilgrimage-host-a',
+                description: 'Crowds swell but stay orderly; many remain after waystations guide them into community.',
+                effects: { members: 110, cohesion: 6, influence: 6 },
+                yearAdvance: 3,
+                soundEffect: 'crowd',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'pilgrimage-host-b',
+                description: 'Vendors press in; some pilgrims drift. Still, many find a home.',
+                effects: { members: 80, cohesion: -4 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'pilgrimage-local',
+          label: 'Keep devotions local and small.',
+          reflection: {
+            prompt: 'What do small devotions protect?',
+            options: ['Attentiveness to persons over crowds.', 'Imperial taxes.', 'Road tolls.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'pilgrimage-local-a',
+                description: 'Local circles deepen in prayer; growth is steady but modest.',
+                effects: { members: 24, cohesion: 8 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+              },
+              weight: 6,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'unity-synod',
+      era: 'fading',
+      yearHint: 432,
+      title: 'Synod of Unity',
+      narrative:
+        'Bishops from nearby sees invite your community to a synod celebrating reconciliation and shared mission.',
+      sceneImage: '/assets/christians_celebrate_mass.png',
+      sceneTitle: 'Under the Bishop’s Hand',
+      sceneCaption:
+        'Delegates gather with scrolls. A letter of peace is ready to sign if all agree.',
+      choices: [
+        {
+          id: 'synod-sign',
+          label: 'Sign the letter of peace and declare common mission.',
+          reflection: {
+            prompt: 'What does public unity accomplish?',
+            options: ['It multiplies witness across the province.', 'It grants tax relief.', 'It guarantees patronage.'],
+            correctIndex: 0,
+          },
+          requirements: { tags: ['unity-pact'] },
+          outcomes: [
+            {
+              value: {
+                id: 'synod-sign-a',
+                description: 'The letter spreads quickly. Congregations combine outreach; many join within months.',
+                effects: { members: 120, cohesion: 10, influence: 8 },
+                yearAdvance: 3,
+                soundEffect: 'discussion',
+              },
+              weight: 7,
+            },
+            {
+              value: {
+                id: 'synod-sign-b',
+                description: 'Unity is formal but fragile; some resent changes. Even so, numbers rise.',
+                effects: { members: 80, cohesion: -4 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+              },
+              weight: 3,
+            },
+          ],
+        },
+        {
+          id: 'synod-abstain',
+          label: 'Abstain; keep focus local.',
+          reflection: {
+            prompt: 'What might abstaining miss?',
+            options: ['Shared momentum that could bless many.', 'Imperial favor.', 'Cheaper oil.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'synod-abstain-a',
+                description: 'You avoid disputes but lose a wave of interest stirred by the synod.',
+                effects: { members: 16, cohesion: 8 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+              },
+              weight: 6,
             },
           ],
         },
@@ -233,7 +557,7 @@ export const baseDeck: GameDeck = {
     },
     {
       id: 'basilica-patronage',
-      era: 'imperial',
+      era: 'fading',
       yearHint: 332,
       title: 'Basilica Patronage Dispute',
       narrative:
@@ -264,6 +588,7 @@ export const baseDeck: GameDeck = {
                 effects: { members: 10, cohesion: -4, influence: 4 },
                 yearAdvance: 3,
                 soundEffect: 'construction',
+                addTags: ['honor-plaques'],
               },
               weight: 6,
             },
@@ -301,6 +626,7 @@ export const baseDeck: GameDeck = {
                 effects: { cohesion: 8, members: 6 },
                 yearAdvance: 2,
                 soundEffect: 'chant',
+                addTags: ['anonymity-stance'],
               },
               weight: 6,
             },
@@ -321,7 +647,7 @@ export const baseDeck: GameDeck = {
     },
     {
       id: 'guild-sabbath-conflict',
-      era: 'imperial',
+      era: 'fading',
       yearHint: 355,
       title: 'Guild Sabbath Conflict',
       narrative:
@@ -352,6 +678,7 @@ export const baseDeck: GameDeck = {
                 effects: { members: 8, cohesion: -4 },
                 yearAdvance: 2,
                 soundEffect: 'discussion',
+                addTags: ['work-exemptions'],
               },
               weight: 6,
             },
@@ -409,7 +736,7 @@ export const baseDeck: GameDeck = {
     },
     {
       id: 'settlement-oath',
-      era: 'imperial',
+      era: 'fading',
       yearHint: 418,
       title: 'Settlement Oath at the Forum',
       narrative:
@@ -598,6 +925,7 @@ export const baseDeck: GameDeck = {
         {
           id: 'relic-procession',
           label: 'Hold a grand procession through the city.',
+          requirements: { forbiddenTags: ['anonymity-stance'] },
           reflection: {
             prompt: 'What risk comes with spectacle?',
             options: [
@@ -635,6 +963,7 @@ export const baseDeck: GameDeck = {
         {
           id: 'relic-quiet',
           label: 'Translate the relics at night with fasting and prayer.',
+          requirements: { tags: ['quiet-devotion'] },
           reflection: {
             prompt: 'Why might restraint deepen formation?',
             options: [
@@ -774,6 +1103,7 @@ export const baseDeck: GameDeck = {
         {
           id: 'procession-public',
           label: 'Approve a full public procession with icons and song.',
+          requirements: { cohesion: 60, influence: 30 },
           reflection: {
             prompt: 'What is the chief risk in marching openly through the city?',
             options: [
@@ -792,6 +1122,7 @@ export const baseDeck: GameDeck = {
                 effects: { members: 6, influence: 5, cohesion: -4 },
                 yearAdvance: 2,
                 soundEffect: 'crowd',
+                addTags: ['public-witness-bold'],
               },
               weight: 6,
             },
@@ -803,6 +1134,7 @@ export const baseDeck: GameDeck = {
                 effects: { cohesion: -12, influence: -4 },
                 yearAdvance: 1,
                 soundEffect: 'violence',
+                addTags: ['public-witness-controversy'],
               },
               weight: 4,
             },
@@ -829,6 +1161,7 @@ export const baseDeck: GameDeck = {
                 effects: { cohesion: 10, influence: -2 },
                 yearAdvance: 1,
                 soundEffect: 'chant',
+                addTags: ['quiet-devotion'],
               },
               weight: 7,
             },
@@ -1718,6 +2051,363 @@ export const baseDeck: GameDeck = {
         },
       ],
     },
+    {
+      id: 'mission-outstations',
+      era: 'founding',
+      yearHint: 120,
+      title: 'Mission to the Countryside',
+      narrative:
+        'Farmers from two hamlets invite teachers to visit monthly. You can spare only a few leaders — how do you structure outreach?',
+      sceneImage: '/assets/procession.png',
+      sceneTitle: 'Road to the Hamlets',
+      sceneCaption:
+        'A dusty path winds past vineyards as catechists discuss how to plant outstations without thinning the flock.',
+      choices: [
+        {
+          id: 'outstations-rotating',
+          label: 'Send a rotating pair of catechists each month.',
+          reflection: {
+            prompt: 'Why share the burden among many?',
+            options: ['Prevents burnout and spreads skill.', 'Impresses magistrates on the road.', 'Avoids fasting obligations.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'outstations-rotating-a',
+                description: 'New hearers gather under fig trees; two families seek baptism next season.',
+                effects: { members: 14, cohesion: 2 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+                addTags: ['mission-rhythm'],
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'outstations-rotating-b',
+                description: 'Travel delays lessons. Still, goodwill grows along the road.',
+                effects: { members: 8 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'outstations-permanent',
+          label: 'Plant a permanent outstation in one hamlet.',
+          reflection: {
+            prompt: 'What is the main risk of a permanent site?',
+            options: ['It can drain leaders from the center.', 'Imperial inspectors seize such sites.', 'Hamlets forbid visitors.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'outstations-permanent-a',
+                description: 'A stable gathering forms quickly; two elders step up to mentor locals.',
+                effects: { members: 18, resources: -3 },
+                yearAdvance: 3,
+                soundEffect: 'discussion',
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'outstations-permanent-b',
+                description: 'The center feels thinly staffed. Some catechumens drift without attention.',
+                effects: { cohesion: -6, members: -4 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+              },
+              weight: 4,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'miracle-healing',
+      era: 'crisis',
+      yearHint: 251,
+      title: 'Healing at the Font',
+      narrative:
+        'During a vigil for the sick, a child’s fever breaks at the baptistery. Word spreads quickly — some call it a miracle, others demand caution.',
+      sceneImage: '/assets/baptism.png',
+      sceneTitle: 'Vigil by the Font',
+      sceneCaption:
+        'Lamplight flickers on the waters as families weep for joy and wonder what it means.',
+      choices: [
+        {
+          id: 'miracle-testify',
+          label: 'Invite healed families to testify and offer catechesis.',
+          reflection: {
+            prompt: 'What is the pedagogical risk?',
+            options: ['Spectacle can overshadow formation.', 'Miracles are illegal to proclaim.', 'It reduces alms.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'miracle-testify-a',
+                description: 'Stories stir hearts, and many seek instruction with sober teaching alongside.',
+                effects: { members: 36, cohesion: 4 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+                addTags: ['miracle-testimonies'],
+              },
+              weight: 7,
+            },
+            {
+              value: {
+                id: 'miracle-testify-b',
+                description: 'Some chase signs rather than commitment; elders work to re-center prayer.',
+                effects: { cohesion: -6, members: 10 },
+                yearAdvance: 1,
+                soundEffect: 'quiet',
+              },
+              weight: 3,
+            },
+          ],
+        },
+        {
+          id: 'miracle-private',
+          label: 'Keep the story private; emphasize thanksgiving and discipleship.',
+          reflection: {
+            prompt: 'How can hiddenness help here?',
+            options: ['It roots joy in God, not fame.', 'It avoids imperial taxes.', 'It ensures better bread.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'miracle-private-a',
+                description: 'Families grow deep; news still leaks out, drawing a few steady seekers.',
+                effects: { members: 18, cohesion: 6 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+                addTags: ['quiet-devotion'],
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'miracle-private-b',
+                description: 'Skeptics mock the hush; a handful leave disappointed.',
+                effects: { members: -6 },
+                yearAdvance: 1,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'mass-conversion-feast',
+      era: 'imperial',
+      yearHint: 335,
+      title: 'Basilica Consecration Feast',
+      narrative:
+        'Crowds gather for the basilica’s consecration. City guilds, magistrates, and families attend. How do you welcome them?',
+      sceneImage: '/assets/christians_celebrate_mass.png',
+      sceneTitle: 'Consecration of the Nave',
+      sceneCaption:
+        'Incense curls through a packed nave as deacons prepare the table and visitors watch closely.',
+      choices: [
+        {
+          id: 'feast-open-baptism',
+          label: 'Offer open catechesis invitations and set a baptism date in six weeks.',
+          requirements: { anyTags: ['quiet-devotion', 'public-witness-bold', 'miracle-testimonies'] },
+          reflection: {
+            prompt: 'Why schedule rather than instant baptisms?',
+            options: ['Formation anchors enthusiasm.', 'Imperial edict requires delays.', 'It lowers water costs.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'feast-open-baptism-a',
+                description: 'Hundreds sign the catechumen roll; many complete preparation and enter the water.',
+                effects: { members: 120, cohesion: 6, influence: 6 },
+                yearAdvance: 3,
+                soundEffect: 'crowd',
+                addTags: ['mass-catechumens'],
+              },
+              weight: 6,
+            },
+            {
+              value: {
+                id: 'feast-open-baptism-b',
+                description: 'Enthusiasm is high but some drift away; still, many remain.',
+                effects: { members: 80, cohesion: 2 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+              },
+              weight: 4,
+            },
+          ],
+        },
+        {
+          id: 'feast-exclusive',
+          label: 'Keep the liturgy tight; welcome later via small groups only.',
+          reflection: {
+            prompt: 'What risk does exclusivity pose here?',
+            options: ['Missed moment of public grace.', 'Imperial fines ensue.', 'Bishops forbid strangers.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'feast-exclusive-a',
+                description: 'Core identity stays focused, but the city’s opening cools.',
+                effects: { members: 18, cohesion: 8 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+              },
+              weight: 6,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'unify-rival-church',
+      era: 'fading',
+      yearHint: 419,
+      title: 'Unification with a Rival Church',
+      narrative:
+        'A nearby congregation split decades ago over discipline. With new pressures at the gates, their presbyter seeks reunion. Terms matter.',
+      sceneImage: '/assets/christians_celebrate_mass.png',
+      sceneTitle: 'Pacts at the Altar',
+      sceneCaption:
+        'Elders from both flocks meet under the apse, scrolls in hand, while families watch with hope and fear.',
+      choices: [
+        {
+          id: 'unify-mutual-pastoral',
+          label: 'Draft a mutual rule of life and shared leadership.',
+          reflection: {
+            prompt: 'Why write a shared rule?',
+            options: ['Clarity guards unity over time.', 'Imperial law demands it.', 'It reduces fasting days.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'unify-mutual-pastoral-a',
+                description: 'The pact heals memories; families rejoin and the nave fills afresh.',
+                effects: { members: 150, cohesion: 12, influence: 6 },
+                yearAdvance: 3,
+                soundEffect: 'discussion',
+                addTags: ['unity-pact'],
+              },
+              weight: 7,
+            },
+            {
+              value: {
+                id: 'unify-mutual-pastoral-b',
+                description: 'Some old wounds reopen; still, most accept the new rule.',
+                effects: { members: 60, cohesion: -4 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+              },
+              weight: 3,
+            },
+          ],
+        },
+        {
+          id: 'unify-absorb',
+          label: 'Absorb them under your elders with minimal negotiation.',
+          reflection: {
+            prompt: 'What backlash could follow?',
+            options: ['Perceived conquest can fracture unity.', 'Imperial fines follow.', 'Merchants boycott bread.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'unify-absorb-a',
+                description: 'A minority resists and leaves; numbers swell but fault lines remain.',
+                effects: { members: 90, cohesion: -10 },
+                yearAdvance: 2,
+                soundEffect: 'discussion',
+              },
+              weight: 6,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'refugees-influx',
+      era: 'fading',
+      yearHint: 423,
+      title: 'Refugees from the North',
+      narrative:
+        'Displaced families flee violence and arrive at your doors. Hospitality could transform the flock — or strain it.',
+      sceneImage: '/assets/army_visits_town.png',
+      sceneTitle: 'Families at the Gate',
+      sceneCaption:
+        'Carts creak under bundles as children peer at the basilica doors.',
+      choices: [
+        {
+          id: 'refugees-settle',
+          label: 'Settle families with sponsors and weekly meals.',
+          reflection: {
+            prompt: 'What tension does this create?',
+            options: ['Resources may sag before gratitude grows.', 'Imperial taxes spike instantly.', 'It bars locals from worship.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'refugees-settle-a',
+                description: 'Sponsors step up; stories spread and many stay.',
+                effects: { members: 70, resources: -12, cohesion: 4 },
+                yearAdvance: 3,
+                soundEffect: 'discussion',
+                addTags: ['refugee-network'],
+              },
+              weight: 7,
+            },
+            {
+              value: {
+                id: 'refugees-settle-b',
+                description: 'Supplies thin; a few families move on. Still, kinship deepens.',
+                effects: { members: 30, resources: -8, cohesion: 2 },
+                yearAdvance: 2,
+                soundEffect: 'quiet',
+              },
+              weight: 3,
+            },
+          ],
+        },
+        {
+          id: 'refugees-redirect',
+          label: 'Redirect to civic aid with letters of support.',
+          reflection: {
+            prompt: 'What is the risk of redirection?',
+            options: ['Witness may look thin when care is needed.', 'Magistrates will outlaw the church.', 'Bread prices always rise.'],
+            correctIndex: 0,
+          },
+          outcomes: [
+            {
+              value: {
+                id: 'refugees-redirect-a',
+                description: 'Civic aid helps some; others return to ask for more personal care.',
+                effects: { influence: 4, cohesion: -4 },
+                yearAdvance: 1,
+                soundEffect: 'discussion',
+              },
+              weight: 6,
+            },
+          ],
+        },
+      ],
+    },
   ],
 }
 
@@ -1726,12 +2416,18 @@ export type GameClock = {
   eventsResolved: Set<string>
 }
 
-const eraOrder: GameEvent['era'][] = ['founding', 'crisis', 'imperial']
+const eraOrder: GameEvent['era'][] = ['founding', 'crisis', 'imperial', 'fading']
 
 function eraForYear(year: number): GameEvent['era'] {
-  if (year < 160) return 'founding'
+  // Target ranges:
+  // founding:   100–199
+  // crisis:     200–312
+  // imperial:   313–429
+  // fading:     430–500
+  if (year < 200) return 'founding'
   if (year < 313) return 'crisis'
-  return 'imperial'
+  if (year < 430) return 'imperial'
+  return 'fading'
 }
 
 export function drawEvent(
@@ -1748,11 +2444,13 @@ export function drawEvent(
 
   const rng = createSeededRng(seed)
   const yearEra = eraForYear(clock.currentYear)
-  // Progression guard: after 4 events, advance to crisis; after 8, advance to imperial
+  // Progression guard: after 4 events, advance to crisis; after 8, advance to imperial; after 12, fading
   const count = clock.eventsResolved.size
-  const progressionEra: GameEvent['era'] = count < 4 ? 'founding' : count < 8 ? 'crisis' : 'imperial'
+  const progressionEra: GameEvent['era'] =
+    count < 4 ? 'founding' : count < 8 ? 'crisis' : count < 12 ? 'imperial' : 'fading'
+  // Constrain by year: do not progress to a later era than the current year window
   const era =
-    eraOrder.indexOf(progressionEra) > eraOrder.indexOf(yearEra) ? progressionEra : yearEra
+    eraOrder.indexOf(progressionEra) > eraOrder.indexOf(yearEra) ? yearEra : progressionEra
 
   const unused = deck.events.filter(
     (event) => event.era === era && !clock.eventsResolved.has(event.id),
@@ -1771,9 +2469,9 @@ export function drawEvent(
 }
 
 export function getImperialStatus(year: number) {
-  if (year < 150) return 'Localized Suspicion'
-  if (year < 250) return 'Localized Persecution'
-  if (year < 313) return 'Anxious Tolerance'
-  if (year < 380) return 'Imperial Favor'
+  // Align with era windows above
+  if (year < 200) return 'Localized Suspicion'
+  if (year < 313) return 'Localized Persecution'
+  if (year < 430) return 'Imperial Favor'
   return 'Provincial Integration'
 }

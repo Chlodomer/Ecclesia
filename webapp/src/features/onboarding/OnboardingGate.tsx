@@ -36,7 +36,8 @@ export function useStudentSession() {
 function useInitialPhase(session: StudentSession | null): Phase {
   if (!session) return 'form'
   if (session.status === 'completed') return 'locked'
-  return 'resume'
+  // Auto-ready when a session exists (no resume screen)
+  return 'ready'
 }
 
 function generateSessionId() {
@@ -82,6 +83,21 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
       setSessionAndPersist(storedSession)
     }
   }, [phase, storedSession, setSessionAndPersist])
+
+  // Listen for session creation from the opening screen
+  useEffect(() => {
+    const onCreated = () => {
+      const latest = loadSession()
+      if (latest) {
+        setStoredSession(latest)
+        setHasUnlocked(true)
+      }
+    }
+    window.addEventListener('ecclesia:session-created' as unknown as string, onCreated as unknown as EventListener)
+    return () => {
+      window.removeEventListener('ecclesia:session-created' as unknown as string, onCreated as unknown as EventListener)
+    }
+  }, [])
 
   const sessionContextValue = useMemo<StudentSessionContextValue>(() => {
     if (phase === 'ready') {
@@ -154,7 +170,7 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
     <StudentSessionContext.Provider value={sessionContextValue}>
       <div className={styles.gateContainer}>
         {children}
-        {phase !== 'ready' ? (
+        {phase === 'locked' ? (
           <div
             className={styles.overlay}
             role="dialog"
@@ -185,108 +201,7 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
                 </div>
               </aside>
               <section className={styles.cardContent}>
-                {phase === 'form' ? (
-                  <>
-                    <section className={styles.intro}>
-                      <h2>Begin Your Ecclesia Session</h2>
-                      <p>
-                        Add your details to create a session token on this device. This locks your
-                        attempt so the report maps back to you.
-                      </p>
-                    </section>
-                    <form className={styles.form} onSubmit={onSubmit}>
-                      <div className={styles.field}>
-                        <label htmlFor="fullName">Full name</label>
-                        <input
-                          id="fullName"
-                          name="fullName"
-                          type="text"
-                        autoComplete="name"
-                        value={fullName}
-                        onChange={(event) => setFullName(event.target.value)}
-                        onFocus={() => {
-                          resetError()
-                          handlePrime()
-                        }}
-                        placeholder="e.g., Sophia Laurent"
-                        required
-                      />
-                    </div>
-
-                      <div className={styles.field}>
-                        <label htmlFor="email">Email</label>
-                        <input
-                          id="email"
-                          name="email"
-                          type="email"
-                        autoComplete="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        onFocus={() => {
-                          resetError()
-                          handlePrime()
-                        }}
-                        placeholder="name@example.edu"
-                        required
-                      />
-                    </div>
-
-                      {error ? <div className={styles.error}>{error}</div> : null}
-
-                      <button
-                        type="submit"
-                        className={styles.submitButton}
-                        disabled={isSubmitting}
-                        data-testid="submit-onboarding"
-                      >
-                        Enter the chronicle
-                      </button>
-                    </form>
-                    <p className={styles.notice}>
-                      Data persists locally in <code>{SESSION_STORAGE_KEY}</code>. To reset, clear
-                      browser storage or ask your instructor.
-                    </p>
-                  </>
-                ) : null}
-
-                {phase === 'resume' && session ? (
-                  <div className={styles.resumeCard}>
-                    <section className={styles.intro}>
-                      <h2>Resume Your Chronicle</h2>
-                      <p>
-                        We found an active session on this device. Confirm these details to return
-                        to the moment you last guided the community.
-                      </p>
-                    </section>
-
-                    <ul className={styles.sessionDetails}>
-                      <li>
-                        <strong>Name:</strong> {session.fullName}
-                      </li>
-                      <li>
-                        <strong>Email:</strong> {session.email}
-                      </li>
-                      <li>
-                        <strong>Started:</strong> {formatDate(session.startedAt)}
-                      </li>
-                    </ul>
-
-                    <div className={styles.resumeActions}>
-                      <button type="button" className={styles.resumeButton} onClick={handleResume}>
-                        Rejoin session
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.secondaryButton}
-                        onClick={() => setStoredSession(null)}
-                      >
-                        Start over
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {phase === 'locked' && session ? (
+                {session ? (
                   <div className={styles.lockedMessage}>
                     <strong>Session Locked</strong>
                     <p>

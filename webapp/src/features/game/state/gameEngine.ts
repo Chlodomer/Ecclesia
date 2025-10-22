@@ -4,6 +4,7 @@ import {
   baseDeck,
   drawEvent,
   drawMicroEvent,
+  drawMicroEventForResources,
   getImperialStatus,
   type EventChoice,
   type EventOutcome,
@@ -54,9 +55,11 @@ type GameEngineState = {
   microEventPending: MicroEvent | null
   microEventRevealAt: number | null
   microEventRevealed: boolean
+  microEventHistory: string[]
   log: GameLogEntry[]
   eventsResolved: Set<string>
   ending: GameEnding | null
+  tags: Set<string>
 }
 
 type GameEngineAction =
@@ -75,6 +78,7 @@ type GameEngineAction =
   | { type: 'scheduleMicroEvent'; payload: { micro: MicroEvent; revealAt: number } }
   | { type: 'revealMicroEvent' }
   | { type: 'markComplete'; payload: { ending: GameEnding } }
+  | { type: 'applyTags'; payload: { add?: string[]; remove?: string[] } }
 
 const INITIAL_STATS: GameStats = {
   members: 48,
@@ -100,7 +104,7 @@ function getMembersGrowthFactor(year: number): number {
   if (year < 160) return 1.0
   if (year < 313) return 1.25
   if (year < 380) return 1.5
-  return 1.8
+  return 2.1
 }
 
 function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngineState {
@@ -159,7 +163,7 @@ function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngi
       const updatedResolved = new Set(state.eventsResolved)
       updatedResolved.add(state.currentEvent.id)
 
-      return {
+      const nextState: GameEngineState = {
         ...state,
         phase: 'resolving',
         stats: action.payload.stats,
@@ -171,6 +175,8 @@ function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngi
         pendingChoice: null,
         pendingReflectionAnswer: null,
       }
+
+      return nextState
     }
 
     case 'enterCooldown': {
@@ -196,6 +202,13 @@ function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngi
       }
     }
 
+    case 'applyTags': {
+      const next = new Set(state.tags)
+      for (const t of action.payload.add ?? []) next.add(t)
+      for (const t of action.payload.remove ?? []) next.delete(t)
+      return { ...state, tags: next }
+    }
+
     case 'scheduleMicroEvent': {
       return {
         ...state,
@@ -208,10 +221,12 @@ function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngi
     case 'revealMicroEvent': {
       if (!state.microEventPending) return state
       const nextStats = applyStatDelta(state.stats, state.microEventPending.effects)
+      const nextHistory = [...state.microEventHistory, state.microEventPending.id].slice(-20)
       return {
         ...state,
         stats: nextStats,
         microEventRevealed: true,
+        microEventHistory: nextHistory,
       }
     }
 
@@ -243,9 +258,11 @@ const initialState: GameEngineState = {
   microEventPending: null,
   microEventRevealAt: null,
   microEventRevealed: false,
+  microEventHistory: [],
   log: [],
   eventsResolved: new Set(),
   ending: null,
+  tags: new Set<string>(),
 }
 
 export function useGameEngine() {
@@ -306,27 +323,68 @@ export function useGameEngine() {
       members: Math.round((outcome.effects.members ?? 0) * factor),
     }
     const updatedStats = applyStatDelta(state.stats, scaled)
-    const nextImperial = getImperialStatus(state.year + outcome.yearAdvance)
+    // Ensure time progresses meaningfully per event; larger steps in later eras
+    const minStep = state.year < 200 ? 3 : state.year < 313 ? 6 : state.year < 430 ? 10 : 15
+    const effectiveAdvance = Math.max(outcome.yearAdvance, minStep)
+    const adjustedOutcome: EventOutcome = { ...outcome, yearAdvance: effectiveAdvance }
+    const nextImperial = getImperialStatus(state.year + effectiveAdvance)
 
     dispatch({
       type: 'resolveChoice',
       payload: {
-        outcome,
+        outcome: adjustedOutcome,
         stats: updatedStats,
         imperialStatus: nextImperial,
         timestamp: new Date().toISOString(),
       },
     })
 
+    // Apply any tag changes from the outcome
+    dispatch({
+      type: 'applyTags',
+      payload: { add: outcome.addTags, remove: outcome.removeTags },
+    })
+
     if (checkForEnding(updatedStats)) {
+      return
+    }
+
+    // Check if there are more events before entering cooldown
+    // This ensures a smooth transition to the end screen on the final event
+    const nextEventAvailable = drawEvent(
+      baseDeck,
+      {
+        currentYear: state.year + effectiveAdvance,
+        eventsResolved: new Set([...state.eventsResolved, state.currentEvent.id]),
+      },
+      Date.now(),
+    )
+
+    if (!nextEventAvailable) {
+      // No more events - show outcome briefly, then transition to victory screen
+      // Wait 2.5 seconds to let user read the final outcome
+      setTimeout(() => {
+        dispatch({ type: 'markComplete', payload: { ending: 'victory' } })
+      }, 2500)
       return
     }
 
     const endsAt = Date.now() + COOLDOWN_MS
     dispatch({ type: 'enterCooldown', payload: { endsAt } })
 
-    // Schedule a micro-event to reveal midway through cooldown
-    const micro = drawMicroEvent(Date.now())
+    // Schedule a micro-event to reveal midway through cooldown (bias toward donations if low on resources)
+    let micro = drawMicroEventForResources(
+      updatedStats.resources,
+      state.year,
+      Date.now(),
+      Array.from(state.microEventHistory),
+    )
+    // Avoid immediate repetition of recent micro-events
+    let guard = 0
+    while (state.microEventHistory.includes(micro.id) && guard < 4) {
+      micro = drawMicroEvent(Date.now() + guard)
+      guard += 1
+    }
     const revealAt = Date.now() + Math.max(1200, Math.floor(COOLDOWN_MS * 0.5))
     dispatch({ type: 'scheduleMicroEvent', payload: { micro, revealAt } })
   }, [state.currentEvent, state.pendingChoice, state.stats, state.year, checkForEnding])

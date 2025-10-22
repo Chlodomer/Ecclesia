@@ -1,0 +1,111 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(1200px 800px at 50% 60%, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.75) 65%);
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  filter: saturate(1.1) brightness(0.8);
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: #fff;
+  padding: 2rem 1.5rem;
+}
+
+.title {
+  margin: 0 0 0.75rem 0;
+  font-family: var(--font-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: clamp(1.4rem, 3.6vw + 0.8rem, 3rem);
+  text-shadow: 0 2px 18px rgba(0,0,0,0.5);
+}
+
+.subtitle {
+  margin: 0 0 2rem 0;
+  font-size: clamp(0.95rem, 1.4vw + 0.4rem, 1.35rem);
+  opacity: 0.9;
+}
+
+.hint {
+  display: inline-block;
+  margin-top: 1.25rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.9;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.22);
+}
+
+.form {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.row {
+  display: grid;
+  text-align: left;
+}
+
+.row label {
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 0.15rem;
+}
+
+.row input {
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.35);
+  padding: 0.55rem 0.7rem;
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+}
+
+.actions {
+  margin-top: 0.8rem;
+}
+
+.startButton {
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.error {
+  margin-top: 0.4rem;
+  color: #ffd1c7;
+  font-size: 0.9rem;
+}
+
+.fadeIn {
+  animation: opening-fade-in 520ms ease-out both;
+}
+
+@keyframes opening-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
