@@ -245,25 +245,75 @@ function gameReducer(state: GameEngineState, action: GameEngineAction): GameEngi
   }
 }
 
-const initialState: GameEngineState = {
-  phase: 'loading',
-  year: baseDeck.initialYear,
-  imperialStatus: getImperialStatus(baseDeck.initialYear),
-  stats: INITIAL_STATS,
-  currentEvent: null,
-  pendingChoice: null,
-  pendingReflectionAnswer: null,
-  resolvedOutcome: null,
-  cooldownEndsAt: null,
-  microEventPending: null,
-  microEventRevealAt: null,
-  microEventRevealed: false,
-  microEventHistory: [],
-  log: [],
-  eventsResolved: new Set(),
-  ending: null,
-  tags: new Set<string>(),
+// Debug helper: skip to specific event number via URL param ?skipTo=22
+function getDebugInitialState(): GameEngineState {
+  if (typeof window === 'undefined') return getDefaultInitialState()
+
+  const params = new URLSearchParams(window.location.search)
+  const skipTo = parseInt(params.get('skipTo') || '0', 10)
+
+  if (!skipTo || skipTo <= 0) return getDefaultInitialState()
+
+  // Simulate progress through events
+  const allEventIds = baseDeck.events.map(e => e.id)
+  const resolvedCount = Math.min(skipTo - 1, allEventIds.length - 1)
+  const eventsResolved = new Set(allEventIds.slice(0, resolvedCount))
+
+  // Set year to late game (Fading era)
+  const year = 450
+
+  // Set stats to viable late-game values
+  const stats: GameStats = {
+    members: 380,
+    cohesion: 65,
+    resources: 45,
+    influence: 60,
+  }
+
+  return {
+    phase: 'loading',
+    year,
+    imperialStatus: getImperialStatus(year),
+    stats,
+    currentEvent: null,
+    pendingChoice: null,
+    pendingReflectionAnswer: null,
+    resolvedOutcome: null,
+    cooldownEndsAt: null,
+    microEventPending: null,
+    microEventRevealAt: null,
+    microEventRevealed: false,
+    microEventHistory: [],
+    log: [],
+    eventsResolved,
+    ending: null,
+    tags: new Set<string>(),
+  }
 }
+
+function getDefaultInitialState(): GameEngineState {
+  return {
+    phase: 'loading',
+    year: baseDeck.initialYear,
+    imperialStatus: getImperialStatus(baseDeck.initialYear),
+    stats: INITIAL_STATS,
+    currentEvent: null,
+    pendingChoice: null,
+    pendingReflectionAnswer: null,
+    resolvedOutcome: null,
+    cooldownEndsAt: null,
+    microEventPending: null,
+    microEventRevealAt: null,
+    microEventRevealed: false,
+    microEventHistory: [],
+    log: [],
+    eventsResolved: new Set(),
+    ending: null,
+    tags: new Set<string>(),
+  }
+}
+
+const initialState: GameEngineState = getDebugInitialState()
 
 export function useGameEngine() {
   const [state, dispatch] = useReducer(gameReducer, initialState)

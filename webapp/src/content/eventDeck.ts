@@ -2456,13 +2456,28 @@ export function drawEvent(
     (event) => event.era === era && !clock.eventsResolved.has(event.id),
   )
   if (unused.length === 0) {
+    // Only progress to the next era if the current year has reached its lower bound
     const nextEraIndex = eraOrder.indexOf(era) + 1
-    const fallbackEra = nextEraIndex < eraOrder.length ? eraOrder[nextEraIndex]! : era
-    const fallback = deck.events.filter(
-      (event) => event.era === fallbackEra && !clock.eventsResolved.has(event.id),
-    )
-    if (fallback.length === 0) return null
-    return fallback[Math.floor(rng() * fallback.length)]
+    const nextEra = nextEraIndex < eraOrder.length ? eraOrder[nextEraIndex]! : null
+
+    const lowerBound: Record<GameEvent['era'], number> = {
+      founding: 100,
+      crisis: 200,
+      imperial: 313,
+      fading: 430,
+    }
+
+    if (nextEra && clock.currentYear >= lowerBound[nextEra]) {
+      const fallback = deck.events.filter(
+        (event) => event.era === nextEra && !clock.eventsResolved.has(event.id),
+      )
+      if (fallback.length > 0) return fallback[Math.floor(rng() * fallback.length)]
+    }
+
+    // Otherwise reuse a prior event from the current era (avoid showing later eras too early)
+    const reusePool = deck.events.filter((event) => event.era === era)
+    if (reusePool.length === 0) return null
+    return reusePool[Math.floor(rng() * reusePool.length)]
   }
 
   return unused[Math.floor(rng() * unused.length)]
