@@ -373,13 +373,24 @@ export function useGameEngine() {
       members: Math.round((outcome.effects.members ?? 0) * factor),
     }
     const updatedStats = applyStatDelta(state.stats, scaled)
+
+    // If we're playing an event from a later era, jump the year to match that era
+    let yearBase = state.year
+    if (current.era === 'crisis' && yearBase < 200) {
+      yearBase = 200 // Jump to Crisis era start
+    } else if (current.era === 'imperial' && yearBase < 313) {
+      yearBase = 313 // Jump to Imperial era start
+    } else if (current.era === 'fading' && yearBase < 430) {
+      yearBase = 430 // Jump to Fading era start
+    }
+
     // Ensure time progresses meaningfully per event; larger steps in later eras
-    const minStep = state.year < 200 ? 3 : state.year < 313 ? 6 : state.year < 430 ? 10 : 15
+    const minStep = yearBase < 200 ? 3 : yearBase < 313 ? 6 : yearBase < 430 ? 10 : 15
     const baseAdvance = Math.max(outcome.yearAdvance, minStep)
     // Decade pacing: snap to the next decade boundary (e.g., 118 -> 120)
-    const nextDecade = Math.ceil((state.year + 1) / 10) * 10
-    const decadeAdvance = Math.max(baseAdvance, nextDecade - state.year)
-    const clampedNextYear = Math.min(500, state.year + decadeAdvance)
+    const nextDecade = Math.ceil((yearBase + 1) / 10) * 10
+    const decadeAdvance = Math.max(baseAdvance, nextDecade - yearBase)
+    const clampedNextYear = Math.min(500, yearBase + decadeAdvance)
     const effectiveAdvance = clampedNextYear - state.year
     const adjustedOutcome: EventOutcome = { ...outcome, yearAdvance: effectiveAdvance }
     const nextImperial = getImperialStatus(clampedNextYear)
