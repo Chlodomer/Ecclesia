@@ -31,7 +31,7 @@ export function App() {
   }, [skipOpening])
 
   return (
-    <div className="app-root" style={{ backgroundColor: '#1e1a16' }}>
+    <div className="app-root">
       <SoundscapeProvider>
         {skipOpening ? (
           <OnboardingGate>
