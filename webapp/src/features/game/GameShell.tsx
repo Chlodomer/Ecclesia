@@ -222,15 +222,11 @@ export function GameShell() {
   // Choice disabling computed after chapter slide state is known (set below)
   const lastEvent = log.length > 0 ? log[log.length - 1] : null
 
+  // UI era label should always reflect the actual historical year, not the event's era property
+  // This ensures timeline accuracy even when events from later eras appear early
   const uiEraKey: 'Founding' | 'Persecution' | 'Imperial' | 'Fading' = useMemo(() => {
-    const eventEra = currentEvent?.era ?? null
-    if (eventEra === 'founding') return 'Founding'
-    if (eventEra === 'crisis') return 'Persecution'
-    if (eventEra === 'imperial') return year >= 430 ? 'Fading' : 'Imperial'
-    if (eventEra === 'fading') return 'Fading'
-    // Fallback to year-derived if no event yet
     return eraKeyFromYear(year)
-  }, [currentEvent?.era, year])
+  }, [year])
 
   const eraSummary = useMemo(() => {
     switch (uiEraKey) {
