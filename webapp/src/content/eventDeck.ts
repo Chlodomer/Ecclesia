@@ -2475,31 +2475,18 @@ export function drawEvent(
     (event) => event.era === era && !clock.eventsResolved.has(event.id),
   )
   if (unused.length === 0) {
-    // Only progress to the next era if the current year has reached its lower bound
-    const nextEraIndex = eraOrder.indexOf(era) + 1
-    const nextEra = nextEraIndex < eraOrder.length ? eraOrder[nextEraIndex]! : null
+    // Current era exhausted - try all subsequent eras until we find available events
+    // This ensures we can progress through all eras even if years haven't caught up
+    const currentIndex = eraOrder.indexOf(era)
 
-    const lowerBound: Record<GameEvent['era'], number> = {
-      founding: 100,
-      crisis: 200,
-      imperial: 313,
-      fading: 430,
-    }
-
-    if (nextEra && clock.currentYear >= lowerBound[nextEra]) {
-      const fallback = deck.events.filter(
-        (event) => event.era === nextEra && !clock.eventsResolved.has(event.id),
+    for (let i = currentIndex + 1; i < eraOrder.length; i++) {
+      const candidateEra = eraOrder[i]
+      const candidateEvents = deck.events.filter(
+        (event) => event.era === candidateEra && !clock.eventsResolved.has(event.id),
       )
-      if (fallback.length > 0) return fallback[Math.floor(rng() * fallback.length)]
-    }
-
-    // If current era is exhausted but we can't advance yet, allow progressing to next era anyway
-    // This prevents scenario repetition which breaks immersion
-    if (nextEra) {
-      const fallback = deck.events.filter(
-        (event) => event.era === nextEra && !clock.eventsResolved.has(event.id),
-      )
-      if (fallback.length > 0) return fallback[Math.floor(rng() * fallback.length)]
+      if (candidateEvents.length > 0) {
+        return candidateEvents[Math.floor(rng() * candidateEvents.length)]
+      }
     }
 
     // No more events available in any era - game should end
