@@ -176,6 +176,8 @@
   color: #fff;
   justify-content: flex-end;
   padding: var(--space-xl);
+  /* Avoid white flash before scene image loads */
+  background: transparent;
 }
 
 .phaseComplete .sceneBackgroundLayer {
@@ -226,6 +228,8 @@
   background-position: center;
   filter: saturate(1.05);
   z-index: 0;
+  /* Dark fallback to prevent white flash while image loads */
+  background-color: #1e1a16;
 }
 
 .sceneBackgroundCurrent {

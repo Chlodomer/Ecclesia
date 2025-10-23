@@ -45,6 +45,16 @@ export function GameShell() {
     cooldownRemainingMs,
   } = useGameEngine()
 
+  // Signal mount to allow opening overlay to dismiss only when ready
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ecclesia:game-mounted'))
+    }
+  }, [])
+
+  // Proactively signal when the first scene image is ready to display
+  const sceneReadyAnnouncedRef = useRef(false)
+
   const {
     stats,
     year,
@@ -184,6 +194,31 @@ export function GameShell() {
     lastEventRef.current?.sceneCaption ??
     "Timber scaffolds clutch the nave as masons pause for guidance. Another chapter in the community's story is on the way."
 
+  // Backdrop image for the base layer (used for complete screen)
+  const backdropImage = sceneImage
+
+  // After we know the current scene image, preload and announce readiness
+  useEffect(() => {
+    if (sceneReadyAnnouncedRef.current) return
+    const src = sceneImage
+    if (!src) return
+    let done = false
+    const img = new Image()
+    const announce = () => {
+      if (done) return
+      done = true
+      sceneReadyAnnouncedRef.current = true
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('ecclesia:scene-ready'))
+      }
+    }
+    img.onload = announce
+    img.onerror = announce
+    img.src = src
+    const fallback = window.setTimeout(announce, 1000)
+    return () => window.clearTimeout(fallback)
+  }, [sceneImage])
+
   // Choice disabling computed after chapter slide state is known (set below)
   const lastEvent = log.length > 0 ? log[log.length - 1] : null
 
@@ -294,10 +329,15 @@ export function GameShell() {
   const lastEraForChapterRef = useRef<string | null>(null)
   useEffect(() => {
     if (!session) return
+    // Allow disabling via query flag for debugging
+    const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+    const overlaysDisabled = !!(sp && (sp.has('noChapters') || sp.has('noOverlays')))
+    if (overlaysDisabled) return
+
     const currentUiEra = uiEraKey
-    const firstShow = !lastEraForChapterRef.current
     const eraChanged = lastEraForChapterRef.current && lastEraForChapterRef.current !== currentUiEra
-    if (firstShow || eraChanged) {
+    // Do not show on first load and do not show if there is no prior gameplay
+    if (eraChanged && state.log.length > 0 && phase !== 'loading') {
       lastEraForChapterRef.current = currentUiEra
       setShowEraChapter(true)
       setEraChapterKey((k) => k + 1)
@@ -305,7 +345,11 @@ export function GameShell() {
       const t = window.setTimeout(() => setShowEraChapter(false), total)
       return () => window.clearTimeout(t)
     }
-  }, [uiEraKey, session])
+    // Initialize without showing the chapter slide on first load
+    if (!lastEraForChapterRef.current && currentUiEra) {
+      lastEraForChapterRef.current = currentUiEra
+    }
+  }, [uiEraKey, session, state.log.length, phase])
 
   // Climax sequence on final end, then show complete card and closing report
   const [climaxActive, setClimaxActive] = useState(false)
@@ -332,6 +376,14 @@ export function GameShell() {
     }
     prevPhaseRef.current = phase
   }, [phase])
+
+  // Announce when the initial event is fully ready so the opening overlay can safely dismiss
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if ((phase === 'decision' || phase === 'confirm' || phase === 'resolving' || phase === 'cooldown') && currentEvent) {
+      window.dispatchEvent(new Event('ecclesia:app-ready'))
+    }
+  }, [phase, currentEvent])
 
   // Choices are disabled outside decision/confirm; chapter slide blocks via overlay z-index
   const disableChoices = phase !== 'decision' && phase !== 'confirm'
@@ -569,7 +621,7 @@ export function GameShell() {
           {phase !== 'complete' ? (
             <div className={styles.eraOverlay} aria-hidden="true">{eraSummary.label}</div>
           ) : null}
-          {showEraChapter ? (
+          {!((typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('noOverlays')) || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('noChapters'))) && showEraChapter ? (
             <div className={styles.eraChapterOverlay} role="dialog" aria-live="polite" key={eraChapterKey}>
               <div className={styles.eraChapterSlide}>
                 <h3 className={styles.eraChapterTitle}>{eraSummary.label}</h3>
@@ -577,7 +629,9 @@ export function GameShell() {
               </div>
             </div>
           ) : null}
-          {showMeanwhile && state.microEventPending ? (
+          {!(typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('noOverlays')) &&
+          showMeanwhile &&
+          state.microEventPending ? (
             <div
               className={`${styles.meanwhileOverlay} ${
                 meanwhileExiting ? styles.meanwhileExit : styles.meanwhileEnter

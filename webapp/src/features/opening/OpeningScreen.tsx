@@ -15,6 +15,7 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
 
   const { prime, playUi } = useSoundscape()
 
@@ -54,6 +55,83 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
   // Serve directly from Vite public assets
   const titleUrl = '/assets/title.png'
 
+  async function preloadImages(urls: string[], timeoutMs = 800) {
+    setStatus('Preparing images…')
+    const load = (src: string) =>
+      new Promise<void>((resolve) => {
+        const img = new Image()
+        img.onload = () => resolve()
+        img.onerror = () => resolve()
+        img.src = src
+      })
+    const all = Promise.all(urls.map(load))
+    await Promise.race([
+      all,
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ])
+  }
+
+  async function waitForGameMounted(timeoutMs = 800) {
+    setStatus('Starting engine…')
+    if (typeof window === 'undefined') return
+    let resolved = false
+    await new Promise<void>((resolve) => {
+      const handler = () => {
+        if (resolved) return
+        resolved = true
+        window.removeEventListener('ecclesia:game-mounted' as unknown as string, handler as unknown as EventListener)
+        resolve()
+      }
+      window.addEventListener('ecclesia:game-mounted' as unknown as string, handler as unknown as EventListener, { once: true })
+      window.setTimeout(() => {
+        if (resolved) return
+        resolved = true
+        window.removeEventListener('ecclesia:game-mounted' as unknown as string, handler as unknown as EventListener)
+        resolve()
+      }, timeoutMs)
+    })
+  }
+
+  async function waitForSceneReady(timeoutMs = 1200) {
+    if (typeof window === 'undefined') return
+    let resolved = false
+    await new Promise<void>((resolve) => {
+      const handler = () => {
+        if (resolved) return
+        resolved = true
+        window.removeEventListener('ecclesia:scene-ready' as unknown as string, handler as unknown as EventListener)
+        resolve()
+      }
+      window.addEventListener('ecclesia:scene-ready' as unknown as string, handler as unknown as EventListener, { once: true })
+      window.setTimeout(() => {
+        if (resolved) return
+        resolved = true
+        window.removeEventListener('ecclesia:scene-ready' as unknown as string, handler as unknown as EventListener)
+        resolve()
+      }, timeoutMs)
+    })
+  }
+
+  async function waitForAppReady(timeoutMs = 2000) {
+    if (typeof window === 'undefined') return
+    let resolved = false
+    await new Promise<void>((resolve) => {
+      const handler = () => {
+        if (resolved) return
+        resolved = true
+        window.removeEventListener('ecclesia:app-ready' as unknown as string, handler as unknown as EventListener)
+        resolve()
+      }
+      window.addEventListener('ecclesia:app-ready' as unknown as string, handler as unknown as EventListener, { once: true })
+      window.setTimeout(() => {
+        if (resolved) return
+        resolved = true
+        window.removeEventListener('ecclesia:app-ready' as unknown as string, handler as unknown as EventListener)
+        resolve()
+      }, timeoutMs)
+    })
+  }
+
   async function submit(e?: FormEvent) {
     if (e) e.preventDefault()
     const existing = loadSession()
@@ -62,6 +140,22 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
     // If a session already exists and fields are empty, just continue
     if (existing && !name && !mail) {
       window.dispatchEvent(new Event('ecclesia:session-created'))
+      // Warm up critical images and wait for game + first scene readiness to avoid white flash
+      await preloadImages(['/assets/title.png', '/assets/baptism.png', '/assets/church_being_built.png'])
+      await waitForGameMounted(1200)
+      await waitForSceneReady(1500)
+      await waitForAppReady(2000)
+      // Also wait until the scene container exists in the DOM (up to 1s)
+      setStatus('Finalizing…')
+      await new Promise<void>((resolve) => {
+        const start = Date.now()
+        const check = () => {
+          const el = document.querySelector('section[aria-label="Community scene"]')
+          if (el || Date.now() - start > 1000) resolve()
+          else requestAnimationFrame(check)
+        }
+        check()
+      })
       setDismissed(true)
       prime()
       playUi()
@@ -80,6 +174,21 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
     try {
       persistSession({ id: `session-${Date.now()}`, fullName: name, email: mail, status: 'active', startedAt: new Date().toISOString() })
       window.dispatchEvent(new Event('ecclesia:session-created'))
+      // Warm up critical images and wait for game + first scene readiness to avoid white flash
+      await preloadImages(['/assets/title.png', '/assets/baptism.png', '/assets/church_being_built.png'])
+      await waitForGameMounted(1200)
+      await waitForSceneReady(1500)
+      await waitForAppReady(2000)
+      setStatus('Finalizing…')
+      await new Promise<void>((resolve) => {
+        const start = Date.now()
+        const check = () => {
+          const el = document.querySelector('section[aria-label="Community scene"]')
+          if (el || Date.now() - start > 1000) resolve()
+          else requestAnimationFrame(check)
+        }
+        check()
+      })
       setDismissed(true)
       prime()
       playUi()
@@ -95,7 +204,9 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
       <div className={styles.backdrop} style={{ backgroundImage: `url(${titleUrl})` }} />
       <div className={styles.content}>
         <h1 className={styles.title}>Ecclesia: A Community's Story</h1>
-        <p className={styles.subtitle}>Guide a fragile church through centuries of change.</p>
+        <p className={styles.subtitle}>
+          {status ? status : 'Guide a fragile church through centuries of change.'}
+        </p>
         <form className={styles.form} onSubmit={submit}>
           <div className={styles.row}>
             <label htmlFor="opening-name">Full name</label>
