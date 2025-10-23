@@ -2462,10 +2462,11 @@ export function drawEvent(
 
   const rng = createSeededRng(seed)
   const yearEra = eraForYear(clock.currentYear)
-  // Progression guard: after 4 events, advance to crisis; after 8, advance to imperial; after 12, fading
+  // Progression guard: match actual event distribution per era
+  // Founding: 4 events (0-3), Crisis: 6 events (4-9), Imperial: 5 events (10-14), Fading: 8 events (15+)
   const count = clock.eventsResolved.size
   const progressionEra: GameEvent['era'] =
-    count < 4 ? 'founding' : count < 8 ? 'crisis' : count < 12 ? 'imperial' : 'fading'
+    count < 4 ? 'founding' : count < 10 ? 'crisis' : count < 15 ? 'imperial' : 'fading'
   // Constrain by year: do not progress to a later era than the current year window
   const era =
     eraOrder.indexOf(progressionEra) > eraOrder.indexOf(yearEra) ? yearEra : progressionEra
