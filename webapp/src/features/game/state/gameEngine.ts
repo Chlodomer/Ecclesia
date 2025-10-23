@@ -407,14 +407,24 @@ export function useGameEngine() {
     // Check if there are more events before entering cooldown
     // This ensures a smooth transition to the end screen on the final event
     // Note: state.year was already updated in resolveChoice above (line 170)
+    const checkResolved = new Set([...state.eventsResolved, state.currentEvent.id])
     const nextEventAvailable = drawEvent(
       baseDeck,
       {
         currentYear: state.year,
-        eventsResolved: new Set([...state.eventsResolved, state.currentEvent.id]),
+        eventsResolved: checkResolved,
       },
       Date.now(),
     )
+
+    // Debug logging
+    if (typeof window !== 'undefined' && !nextEventAvailable) {
+      console.log('[DEBUG] No next event found:',{
+        year: state.year,
+        eventsResolvedCount: checkResolved.size,
+        totalEvents: baseDeck.events.length,
+      })
+    }
 
     if (!nextEventAvailable) {
       // No more events - show outcome briefly, then transition to victory screen
