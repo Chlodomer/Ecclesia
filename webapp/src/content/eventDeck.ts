@@ -2492,11 +2492,17 @@ export function drawEvent(
       if (fallback.length > 0) return fallback[Math.floor(rng() * fallback.length)]
     }
 
-    // Otherwise reuse a prior non-intro event from the current era
-    // (avoid showing later eras too early, and never repeat the intro scenario)
-    const reusePool = deck.events.filter((event) => event.era === era && !event.isIntro)
-    if (reusePool.length === 0) return null
-    return reusePool[Math.floor(rng() * reusePool.length)]
+    // If current era is exhausted but we can't advance yet, allow progressing to next era anyway
+    // This prevents scenario repetition which breaks immersion
+    if (nextEra) {
+      const fallback = deck.events.filter(
+        (event) => event.era === nextEra && !clock.eventsResolved.has(event.id),
+      )
+      if (fallback.length > 0) return fallback[Math.floor(rng() * fallback.length)]
+    }
+
+    // No more events available in any era - game should end
+    return null
   }
 
   return unused[Math.floor(rng() * unused.length)]
