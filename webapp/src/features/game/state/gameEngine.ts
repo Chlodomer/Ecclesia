@@ -406,10 +406,11 @@ export function useGameEngine() {
 
     // Check if there are more events before entering cooldown
     // This ensures a smooth transition to the end screen on the final event
+    // Note: state.year was already updated in resolveChoice above (line 170)
     const nextEventAvailable = drawEvent(
       baseDeck,
       {
-        currentYear: state.year + effectiveAdvance,
+        currentYear: state.year,
         eventsResolved: new Set([...state.eventsResolved, state.currentEvent.id]),
       },
       Date.now(),
