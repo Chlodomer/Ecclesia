@@ -1700,8 +1700,8 @@ export const baseDeck: GameDeck = {
     },
     {
       id: 'bacaudae-uprising',
-      era: 'imperial',
-      yearHint: 395,
+      era: 'fading',
+      yearHint: 435,
       title: 'The Bacaudae Uprising',
       narrative:
         'Desperate peasants torch aristocratic villas outside Arles. Landowners demand a condemnation; deacons see refugees who need shelter.',
