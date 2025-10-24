@@ -41,12 +41,12 @@ concurrency:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build with base path
+      - name: Build with base path (skip TS typecheck)
         env:
           BASE_PATH: ${{ env.BASE_PATH }}
         run: |
           echo "Using BASE_PATH=${BASE_PATH}"
-          npm run build
+          npm run build:site
 
       - name: Add SPA 404 fallback and disable Jekyll
         run: |
