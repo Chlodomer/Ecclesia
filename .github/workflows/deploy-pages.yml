@@ -14,12 +14,12 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: webapp
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: webapp
     env:
       # If this is a special repo like {user}.github.io, base should be '/'
       # Otherwise use '/{repo-name}/' for project pages
@@ -27,6 +27,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Setup Node
         uses: actions/setup-node@v4
