@@ -428,15 +428,6 @@ export function useGameEngine() {
       Date.now(),
     )
 
-    // Debug logging
-    if (typeof window !== 'undefined' && !nextEventAvailable) {
-      console.log('[DEBUG] No next event found:',{
-        year: state.year,
-        eventsResolvedCount: checkResolved.size,
-        totalEvents: baseDeck.events.length,
-      })
-    }
-
     if (!nextEventAvailable) {
       // No more events - show outcome briefly, then transition to victory screen
       // Wait 2.5 seconds to let user read the final outcome
