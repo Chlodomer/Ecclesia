@@ -2471,25 +2471,39 @@ export function drawEvent(
   const era =
     eraOrder.indexOf(progressionEra) > eraOrder.indexOf(yearEra) ? yearEra : progressionEra
 
+  console.log('[drawEvent]', {
+    year: clock.currentYear,
+    count,
+    yearEra,
+    progressionEra,
+    finalEra: era,
+  })
+
   const unused = deck.events.filter(
     (event) => event.era === era && !clock.eventsResolved.has(event.id),
   )
+
+  console.log(`[drawEvent] Found ${unused.length} unused ${era} events`)
   if (unused.length === 0) {
     // Current era exhausted - try all subsequent eras until we find available events
     // This ensures we can progress through all eras even if years haven't caught up
     const currentIndex = eraOrder.indexOf(era)
+    console.log(`[drawEvent] Era ${era} exhausted, checking subsequent eras...`)
 
     for (let i = currentIndex + 1; i < eraOrder.length; i++) {
       const candidateEra = eraOrder[i]
       const candidateEvents = deck.events.filter(
         (event) => event.era === candidateEra && !clock.eventsResolved.has(event.id),
       )
+      console.log(`[drawEvent] Checking ${candidateEra}: found ${candidateEvents.length} events`)
       if (candidateEvents.length > 0) {
+        console.log(`[drawEvent] Returning event from ${candidateEra}`)
         return candidateEvents[Math.floor(rng() * candidateEvents.length)]
       }
     }
 
     // No more events available in any era - game should end
+    console.log('[drawEvent] No more events in any era, returning null')
     return null
   }
 
