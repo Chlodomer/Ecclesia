@@ -34,4 +34,15 @@ With the current build, visiting the dev server first prompts for student name a
 
 ## Deployment
 
-`npm run build` emits a static site (`dist/`). Deployable on Netlify, Vercel, GitHub Pages, or any static host. No backend is required unless we add centralized report ingestion.
+`npm run build` emits a static site (`dist/`). The repo includes a free, always-on GitHub Pages workflow that deploys `webapp/dist` on pushes to `main`:
+
+- Workflow: `.github/workflows/deploy-pages.yml`
+- SPA routing: `404.html` is generated from `index.html`
+- Base path: auto-configured for project pages (e.g. `/repo-name/`)
+
+To use it:
+1. Push to `main` on GitHub.
+2. In your repo Settings → Pages, set Source to “GitHub Actions” (if not auto-enabled).
+3. The site will be available at `https://<user>.github.io/<repo>/` (or your custom domain).
+
+Alternate free hosts (optional): Cloudflare Pages or Netlify also work well for static sites.
