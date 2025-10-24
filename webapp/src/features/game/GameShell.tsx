@@ -5,6 +5,7 @@ import { useCountUp } from '@/hooks/useCountUp'
 import { useStudentSession } from '@/features/onboarding/OnboardingGate'
 
 import styles from './GameShell.module.css'
+import { assetPath } from '@/lib/assets'
 import { useGameEngine } from './state/gameEngine'
 
 function eraKeyFromYear(year: number): 'Founding' | 'Persecution' | 'Imperial' | 'Fading' {
@@ -197,10 +198,14 @@ export function GameShell() {
   // Backdrop image for the base layer (used for complete screen)
   const backdropImage = sceneImage
 
+  // Resolve asset URLs for subpath deployment (e.g., /Ecclesia/)
+  const resolvedSceneImage = assetPath(sceneImage)
+  const resolvedBackdropImage = assetPath(backdropImage)
+
   // After we know the current scene image, preload and announce readiness
   useEffect(() => {
     if (sceneReadyAnnouncedRef.current) return
-    const src = sceneImage
+    const src = resolvedSceneImage
     if (!src) return
     let done = false
     const img = new Image()
@@ -217,7 +222,7 @@ export function GameShell() {
     img.src = src
     const fallback = window.setTimeout(announce, 1000)
     return () => window.clearTimeout(fallback)
-  }, [sceneImage])
+  }, [resolvedSceneImage])
 
   // Choice disabling computed after chapter slide state is known (set below)
   const lastEvent = log.length > 0 ? log[log.length - 1] : null
@@ -593,7 +598,7 @@ export function GameShell() {
         >
           <div
             className={styles.sceneBackgroundBase}
-            style={{ backgroundImage: `url(${backdropImage})` }}
+            style={{ backgroundImage: `url(${resolvedBackdropImage})` }}
             aria-hidden
           />
           {phase !== 'complete' ? (
@@ -604,12 +609,12 @@ export function GameShell() {
               {prevSceneImage ? (
                 <div
                   className={`${styles.sceneBackgroundLayer} ${styles.sceneBackgroundPrevious}`}
-                  style={{ backgroundImage: `url(${prevSceneImage})` }}
+                  style={{ backgroundImage: `url(${assetPath(prevSceneImage)})` }}
                 />
               ) : null}
               <div
                 className={`${styles.sceneBackgroundLayer} ${styles.sceneBackgroundCurrent}`}
-                style={{ backgroundImage: `url(${sceneImage})` }}
+                style={{ backgroundImage: `url(${resolvedSceneImage})` }}
               />
             </div>
           ) : null}
@@ -1020,7 +1025,7 @@ export function GameShell() {
         </div>
         {(phase === 'complete' && reportVisible) || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('previewFinal')) ? (
           <div className={styles.reportOverlay} role="dialog" aria-modal="true">
-            <div className={styles.reportBackdrop} aria-hidden />
+            <div className={styles.reportBackdrop} aria-hidden style={{ backgroundImage: `url(${assetPath('/assets/title.png')})` }} />
             <div className={styles.reportVignette} aria-hidden />
             <div className={styles.reportCard}>
               <h2 className={styles.finalEpithet}>Extra ecclesiam nulla salus.</h2>

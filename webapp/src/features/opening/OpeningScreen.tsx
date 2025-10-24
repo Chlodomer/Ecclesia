@@ -4,6 +4,7 @@ import { useSoundscape } from '@/features/audio/SoundscapeProvider'
 import { persistSession, loadSession } from '@/features/onboarding/sessionStorage'
 
 import styles from './OpeningScreen.module.css'
+import { assetPath } from '@/lib/assets'
 
 type OpeningScreenProps = {
   children: ReactNode
@@ -52,8 +53,8 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
     }
   }, [])
 
-  // Serve directly from Vite public assets
-  const titleUrl = '/assets/title.png'
+  // Resolve against Vite base (e.g., /Ecclesia/ on GitHub Pages)
+  const titleUrl = assetPath('/assets/title.png')
 
   async function preloadImages(urls: string[], timeoutMs = 800) {
     setStatus('Preparing images…')
@@ -62,7 +63,7 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
         const img = new Image()
         img.onload = () => resolve()
         img.onerror = () => resolve()
-        img.src = src
+        img.src = assetPath(src)
       })
     const all = Promise.all(urls.map(load))
     await Promise.race([

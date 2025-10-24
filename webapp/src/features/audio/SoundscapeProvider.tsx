@@ -10,6 +10,7 @@ import {
 } from 'react'
 
 import type { SoundCue } from '@/lib/sound'
+import { assetPath } from '@/lib/assets'
 import { SOUND_MANIFEST, THEME_TRACK } from '@/lib/soundManifest'
 
 type ThemeState = {
@@ -97,10 +98,10 @@ export function SoundscapeProvider({ children }: SoundscapeProviderProps) {
       const existing = bufferCache.current.get(path)
       if (existing) return existing
 
-      const promise = fetch(path)
+      const promise = fetch(assetPath(path))
         .then((response) => {
           if (!response.ok) {
-            throw new Error(`Failed to load audio asset: ${path}`)
+            throw new Error(`Failed to load audio asset: ${assetPath(path)}`)
           }
           return response.arrayBuffer()
         })

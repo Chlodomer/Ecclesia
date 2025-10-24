@@ -12,6 +12,7 @@ import {
 import { useSoundscape } from '@/features/audio/SoundscapeProvider'
 
 import styles from './OnboardingGate.module.css'
+import { assetPath } from '@/lib/assets'
 import {
   type StudentSession,
   loadSession,
@@ -184,7 +185,7 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
                   className={styles.heroArt}
                   role="presentation"
                   aria-hidden="true"
-                  style={{ backgroundImage: 'url(/assets/procession.png)' }}
+                  style={{ backgroundImage: `url(${assetPath('/assets/procession.png')})` }}
                 />
                 <div className={styles.heroCopy}>
                   <p className={styles.heroEyebrow}>Ecclesia: A Community's Story</p>
