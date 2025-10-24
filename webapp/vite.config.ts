@@ -4,6 +4,9 @@ import { resolve } from 'node:path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Allow overriding the base path for GitHub Pages (served under /<repo>/)
+  // Example: BASE_PATH=/Ecclesia/
+  base: process.env.BASE_PATH || '/',
   plugins: [react()],
   resolve: {
     alias: {

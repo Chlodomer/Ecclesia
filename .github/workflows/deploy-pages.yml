@@ -38,8 +38,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type-check and build with correct base
-        run: npm run build -- --base="${{ env.BASE_PATH }}"
+      - name: Build with base path
+        env:
+          BASE_PATH: ${{ env.BASE_PATH }}
+        run: |
+          echo "Using BASE_PATH=${BASE_PATH}"
+          npm run build
 
       - name: Add SPA 404 fallback and disable Jekyll
         run: |
@@ -61,4 +65,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
