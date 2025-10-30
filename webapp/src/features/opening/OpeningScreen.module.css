@@ -35,8 +35,9 @@
 
 .subtitle {
   margin: 0 0 2rem 0;
-  font-size: clamp(0.95rem, 1.4vw + 0.4rem, 1.35rem);
+  font-size: clamp(1.05rem, 1.6vw + 0.5rem, 1.55rem);
   opacity: 0.9;
+  line-height: 1.45;
 }
 
 .hint {
@@ -93,6 +94,38 @@
   padding: 0.5rem 1rem;
   border-radius: 999px;
   cursor: pointer;
+}
+
+.briefingCard {
+  max-width: 720px;
+  margin: 0.75rem auto 0 auto;
+  text-align: left;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+.briefingCard h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.briefingCard p, .briefingCard ul { margin: 0.35rem 0 0.35rem 0; }
+.briefingCard p, .briefingCard li { font-size: 1.05rem; line-height: 1.6; }
+.briefingCard ul { padding-left: 1.25rem; }
+.briefingCard li { margin: 0.2rem 0; }
+
+.continueRow { margin-top: 0.9rem; text-align: center; }
+
+/* Subtle rise + fade for briefing copy */
+.briefingEnter { animation: briefing-fade-in 420ms ease both; }
+@keyframes briefing-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .error {

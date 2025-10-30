@@ -83,6 +83,24 @@ export function TutorialOverlay() {
   const [exiting, setExiting] = useState(false)
   const rect = useRectForStep(renderedStep)
 
+  // Wait until the OpeningScreen has dismissed and GameShell mounted
+  const [gameReady, setGameReady] = useState(false)
+  const [sceneReady, setSceneReady] = useState(false)
+  useEffect(() => {
+    const onMounted = () => setGameReady(true)
+    window.addEventListener('ecclesia:game-mounted', onMounted as any)
+    const onScene = () => {
+      setSceneReady(true)
+      // Seeing the scene implies the game is mounted
+      setGameReady(true)
+    }
+    window.addEventListener('ecclesia:scene-ready', onScene as any)
+    return () => {
+      window.removeEventListener('ecclesia:game-mounted', onMounted as any)
+      window.removeEventListener('ecclesia:scene-ready', onScene as any)
+    }
+  }, [])
+
   useEffect(() => {
     if (!active) return
     const onKey = (e: KeyboardEvent) => {
@@ -99,7 +117,8 @@ export function TutorialOverlay() {
   }, [active])
 
   const [dismissed, setDismissed] = useState(false)
-  const show = active && !dismissed
+  // Showing when scene is ready avoids race conditions with game-mounted
+  const show = active && sceneReady && !dismissed
 
   const next = () => {
     if (renderedStep === 5) {
