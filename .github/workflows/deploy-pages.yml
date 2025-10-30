@@ -14,12 +14,12 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-  jobs:
-    build:
-      runs-on: ubuntu-latest
-      defaults:
-        run:
-          working-directory: webapp
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
     env:
       # If this is a special repo like {user}.github.io, base should be '/'
       # Otherwise use '/{repo-name}/' for project pages
@@ -44,8 +44,11 @@ concurrency:
       - name: Build with base path (skip TS typecheck)
         env:
           BASE_PATH: ${{ env.BASE_PATH }}
+          # Enable the tutorial overlay in production builds
+          VITE_FEATURE_TUTORIAL: 'true'
         run: |
           echo "Using BASE_PATH=${BASE_PATH}"
+          echo "Tutorial feature flag: ${VITE_FEATURE_TUTORIAL}"
           npm run build:site
 
       - name: Add SPA 404 fallback and disable Jekyll

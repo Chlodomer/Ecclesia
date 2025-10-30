@@ -11,6 +11,8 @@ npm run dev
 
 The dev server runs at <http://localhost:5173>. Hot Module Replacement is enabled.
 
+Optional: copy `.env.example` to `.env` if you want to toggle feature flags locally (e.g., enabling the new tutorial overlay with `VITE_FEATURE_TUTORIAL=true`).
+
 ## Scripts
 
 - `npm run dev` – start the dev server

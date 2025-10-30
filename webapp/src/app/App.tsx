@@ -4,6 +4,7 @@ import { GameShell } from '@/features/game/GameShell'
 import { OnboardingGate } from '@/features/onboarding/OnboardingGate'
 import { OpeningScreen } from '@/features/opening/OpeningScreen'
 import { loadSession, persistSession } from '@/features/onboarding/sessionStorage'
+import { TutorialOverlay } from '@/features/tutorial/TutorialOverlay'
 
 /**
  * Root application component. Holds global layout and cross-cutting UI chrome.
@@ -36,11 +37,13 @@ export function App() {
         {skipOpening ? (
           <OnboardingGate>
             <GameShell />
+            <TutorialOverlay />
           </OnboardingGate>
         ) : (
           <OpeningScreen>
             <OnboardingGate>
               <GameShell />
+              <TutorialOverlay />
             </OnboardingGate>
           </OpeningScreen>
         )}
