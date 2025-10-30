@@ -183,6 +183,9 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
       }
       check()
     })
+    try {
+      ;(window as any).__ecclesiaSceneReady = true
+    } catch {}
     setPrepared(true)
   }
 
@@ -191,6 +194,9 @@ export function OpeningScreen({ children }: OpeningScreenProps) {
       await prepareInBackground()
     }
     setDismissed(true)
+    // Persist + signal to overlays (e.g., tutorial) that the title page has fully dismissed
+    try { (window as any).__ecclesiaOpeningDismissed = true } catch {}
+    try { window.dispatchEvent(new Event('ecclesia:opening-dismissed')) } catch {}
     prime()
     playUi()
   }

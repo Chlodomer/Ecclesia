@@ -85,7 +85,15 @@ export function TutorialOverlay() {
 
   // Wait until the OpeningScreen has dismissed and GameShell mounted
   const [gameReady, setGameReady] = useState(false)
-  const [sceneReady, setSceneReady] = useState(false)
+  const [sceneReady, setSceneReady] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return !!(window as any).__ecclesiaSceneReady
+  })
+  const [openingDismissed, setOpeningDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    const sp = new URLSearchParams(window.location.search)
+    return sp.has('skipOpening') || !!(window as any).__ecclesiaOpeningDismissed
+  })
   useEffect(() => {
     const onMounted = () => setGameReady(true)
     window.addEventListener('ecclesia:game-mounted', onMounted as any)
@@ -95,9 +103,12 @@ export function TutorialOverlay() {
       setGameReady(true)
     }
     window.addEventListener('ecclesia:scene-ready', onScene as any)
+    const onOpeningDismissed = () => setOpeningDismissed(true)
+    window.addEventListener('ecclesia:opening-dismissed', onOpeningDismissed as any)
     return () => {
       window.removeEventListener('ecclesia:game-mounted', onMounted as any)
       window.removeEventListener('ecclesia:scene-ready', onScene as any)
+      window.removeEventListener('ecclesia:opening-dismissed', onOpeningDismissed as any)
     }
   }, [])
 
@@ -117,8 +128,8 @@ export function TutorialOverlay() {
   }, [active])
 
   const [dismissed, setDismissed] = useState(false)
-  // Showing when scene is ready avoids race conditions with game-mounted
-  const show = active && sceneReady && !dismissed
+  // Only display after the title page briefing is dismissed (or skipped)
+  const show = active && sceneReady && openingDismissed && !dismissed
 
   const next = () => {
     if (renderedStep === 5) {
